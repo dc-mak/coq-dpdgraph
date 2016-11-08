@@ -23,7 +23,7 @@ let print_nodes fmt graph =
         and prop = bool_opt_to_bool (Node.bool_attrib "prop" n)
         and path = str_opt_to_str (Node.get_attrib "path" n) in
         Format.fprintf fmt "%d,%s,%B,%s,%B,%s@." id name body kind prop path in
-    Format.fprintf fmt "id,name,body,kind,prop,path@.";
+    Format.fprintf fmt "objectId:ID(Object),name,body,kind,prop,path@.";
     G.iter_vertex print_node graph
 
 let print_edges fmt graph =
@@ -34,7 +34,7 @@ let print_edges fmt graph =
     let print_edge e = 
         Format.fprintf fmt "%d,%d,%d@."
             (Node.id (G.E.src e)) (Node.id (G.E.dst e)) (nb_use e) in
-    Format.fprintf fmt "src,dst,weight@.";
+    Format.fprintf fmt ":START_ID(Object),:END_ID(Object),weight@.";
     G.iter_edges_e print_edge graph
 
 let try_open_default file_prefix =
