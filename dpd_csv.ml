@@ -32,9 +32,9 @@ let print_edges fmt graph =
             int_of_string (List.assoc "weight" (G.E.label e))
         with Not_found | Failure _ (* "int_of_string" *) -> 0 in
     let print_edge e = 
-        Format.fprintf fmt "%d,%d,%d@."
+        Format.fprintf fmt "%d,%d,%d,ARC@."
             (Node.id (G.E.src e)) (Node.id (G.E.dst e)) (nb_use e) in
-    Format.fprintf fmt ":START_ID(Object),:END_ID(Object),weight@.";
+    Format.fprintf fmt ":START_ID(Object),:END_ID(Object),weight,:TYPE@.";
     G.iter_edges_e print_edge graph
 
 let try_open_default file_prefix =
