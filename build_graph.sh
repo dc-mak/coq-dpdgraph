@@ -11,8 +11,8 @@ CSVPATH=$2
 TARGET=$3
 
 IMPORTARGS="--into $TARGET \
-           --nodes test_node.csv \
-           --relationships test_edge.csv" 
+           --nodes $CSVPATH/test_node.csv \
+           --relationships $CSVPATH/test_edge.csv" 
 
 # make sure neo4j database is empty 
 rm -rf $TARGET/*
