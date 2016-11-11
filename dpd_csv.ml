@@ -19,11 +19,37 @@ let print_nodes fmt graph =
     let print_node n = 
         let id, name = Node.id n, Node.name n in
         let body = bool_opt_to_bool (Node.bool_attrib "body" n)
-        and kind = str_opt_to_str (Node.get_attrib "kind" n)
-        and prop = bool_opt_to_bool (Node.bool_attrib "prop" n)
+        and prop = bool_opt_to_bool (Node.bool_attrib "prop" n) in 
+        let  kind = let k = str_opt_to_str (Node.get_attrib "kind" n)
+                    in 
+(* kind = cnst: 
+ 
+      body,  prop 
+      ----------
+      true,  true  -> proved lemma
+      true,  false -> Definition, etc
+      false, true  -> axiom/admitted lemma
+      false, false -> Parameter, etc
+*) 
+                       if k = "cnst" 
+                       then if body 
+                            then if prop 
+                                 then "lemma" 
+                                 else "definition" 
+                            else if prop 
+                                 then "admitted" 
+                                 else "parameter" 
+                       else k 
+
         and path = str_opt_to_str (Node.get_attrib "path" n) in
+(*
         Format.fprintf fmt "%d,%s,%B,%s,%B,%s@." id name body kind prop path in
-    Format.fprintf fmt "objectId:ID(Object),name,body,kind,prop,path@.";
+*) 
+        Format.fprintf fmt "%d,%s,%s,%s@." id name kind path in
+(*
+    Format.fprintf fmt "objectId:ID(Object),name,body,:LABEL,prop,path@.";
+*) 
+    Format.fprintf fmt "objectId:ID(Object),name,:LABEL,path@.";
     G.iter_vertex print_node graph
 
 let print_edges fmt graph =
