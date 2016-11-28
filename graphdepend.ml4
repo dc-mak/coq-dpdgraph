@@ -208,6 +208,73 @@ end = struct
       | Globnames.VarRef _ -> assert false
     in acc
 
+  let type_of_logical_kind =
+	let open Decl_kinds in function
+	| IsDefinition def ->
+		(match def with
+		| Definition -> "def"
+		| Coercion -> "coe"
+		| SubClass -> "subclass"
+		| CanonicalStructure -> "canonstruc"
+		| Example -> "ex"
+		| Fixpoint -> "def"
+		| CoFixpoint -> "def"
+		| Scheme -> "scheme"
+		| StructureComponent -> "proj"
+		| IdentityCoercion -> "coe"
+		| Instance -> "inst"
+		| Method -> "meth")
+	| IsAssumption a ->
+		(match a with
+		| Definitional -> "defax"
+		| Logical -> "prfax"
+		| Conjectural -> "prfax")
+	| IsProof th ->
+		(match th with
+		| Theorem
+		| Lemma
+		| Fact
+		| Remark
+		| Property
+		| Proposition
+		| Corollary -> "thm")
+
+  let type_of_ind ind =
+	let (mib,oib) = Inductive.lookup_mind_specif (Global.env ()) ind in
+	if mib.Declarations.mind_record <> None then
+	  let open Decl_kinds in
+	  begin match mib.Declarations.mind_finite with
+	  | Finite -> "indrec"
+	  | BiFinite -> "rec"
+	  | CoFinite -> "corec"
+	  end
+	else
+	  let open Decl_kinds in
+	  begin match mib.Declarations.mind_finite with
+	  | Finite -> "ind"
+	  | BiFinite -> "variant"
+	  | CoFinite -> "coind"
+	  end
+
+  let add_gref_attrib acc gref id =
+	if Typeclasses.is_class gref then
+	  ("kind", "class") :: acc
+	else
+	  match gref with
+	  | Globnames.ConstRef cst ->
+		  let kind = type_of_logical_kind (Decls.constant_kind cst) in
+		  ("kind", kind) :: acc
+
+	  | Globnames.ConstructRef ((typ, _), _) -> 
+		let acc = ("kind", "construct")::acc in
+		add_construct_attrib acc typ
+
+	  | Globnames.IndRef ind -> 
+		("kind", type_of_ind ind) :: acc	
+
+	  | Globnames.ConstRef _ ->
+		assert false
+
   let pp_attribs fmt attribs =
       List.iter (fun (a,b) -> Format.fprintf fmt "%s=%s, " a b) attribs
 
