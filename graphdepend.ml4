@@ -69,20 +69,11 @@ module G = struct
       in Libnames.string_of_qualid qualid
 
     let split_name n =
-      let qualid =
-        Nametab.shortest_qualid_of_global Names.Idset.empty (gref n) in
-      let dirpath, ident = Libnames.repr_qualid qualid in
-      let dirpath = Names.string_of_dirpath dirpath in
-      let dirpath = if dirpath = "<>" then "" else dirpath in
-      let name = Names.string_of_id ident in
-        (dirpath, name)
-        (*
-      let mod_list = Names.repr_dirpath dir_path in
-      let rec dirname l = match l with [] -> ""
-        | m::[] -> Names.string_of_id m
-        | d::tl -> (dirname tl)^"."^(Names.string_of_id d)
-      in (dirname mod_list, name)
-         *)
+      let glob_ref = gref n in
+      let dirpath = Names.DirPath.to_string (Nametab.dirpath_of_global glob_ref)
+      and name = Names.Id.to_string (Nametab.basename_of_global glob_ref) in
+      ((if dirpath = "<>" then "" else dirpath), name)
+
   end
 
   module Edge = struct
@@ -195,6 +186,11 @@ end = struct
       | Declarations.Undef _  -> ("body", "no")::acc
     in acc
 
+  let add_construct_attrib acc typ =
+    let type_str = Names.KerName.to_string (Names.MutInd.user typ) in
+    let () = debug (str "Added type_str: " ++ str type_str) in
+    ("type", "\"" ^ type_str ^ "\"" ) :: acc
+
   let add_gref_attrib acc gref id =
     let is_prop = is_prop gref id in
     let acc = ("prop", if is_prop then "yes" else "no")::acc in
@@ -205,9 +201,10 @@ end = struct
       | Globnames.IndRef _ ->
           let acc = ("kind", "inductive")::acc in
             acc
-      | Globnames.ConstructRef _ ->
+      | Globnames.ConstructRef ((typ, _), _) -> 
           let acc = ("kind", "construct")::acc in
-            acc
+            add_construct_attrib acc typ
+
       | Globnames.VarRef _ -> assert false
     in acc
 
