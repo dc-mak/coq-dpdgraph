@@ -33,27 +33,6 @@ let get_dirlist_grefs dirlist =
     Search.generic_search None select;
     !selected_gref
 
-let is_prop gref id =
-try
-let glob = Glob_term.GRef(Loc.ghost, gref, None) in
-   let env = Global.env() in
-   let sigma = Evd.from_env env in
-   let sigma', c = Pretyping.understand_tcc env sigma glob in
-   let sigma2 = Evarconv.consider_remaining_unif_problems env sigma' in
-   let sigma3, nf = Evarutil.nf_evars_and_universes sigma2 in
-   let pl, uctx = Evd.universe_context sigma3 in
-   let env2 = Environ.push_context uctx (Evarutil.nf_env_evar sigma3 env) in
-   let c2 = nf c in
-   let t = Environ.j_type (Typeops.infer env2 c2) in
-   let t2 = Environ.j_type (Typeops.infer env2 t) in
-       Term.is_Prop t2
-with _ ->
-  begin
-    warning (str "unable to determine the type of the type for " ++ str id);
-    false
-  end;;
-
-
 module G = struct
 
   module Node = struct
@@ -177,36 +156,10 @@ module Out : sig
   val file : G.t -> unit
 end = struct
 
-  let add_cnst_attrib acc cnst =
-    let env = Global.env() in
-    let cb = Environ.lookup_constant cnst env in
-    let acc = match cb.Declarations.const_body with
-      | Declarations.OpaqueDef _
-      | Declarations.Def _ -> ("body", "yes")::acc
-      | Declarations.Undef _  -> ("body", "no")::acc
-    in acc
-
   let add_construct_attrib acc typ =
     let type_str = Names.KerName.to_string (Names.MutInd.user typ) in
     let () = debug (str "Added type_str: " ++ str type_str) in
     ("type", "\"" ^ type_str ^ "\"" ) :: acc
-
-  let add_gref_attrib acc gref id =
-    let is_prop = is_prop gref id in
-    let acc = ("prop", if is_prop then "yes" else "no")::acc in
-    let acc = match gref with
-      | Globnames.ConstRef cnst ->
-          let acc = ("kind", "cnst")::acc in
-            add_cnst_attrib acc cnst
-      | Globnames.IndRef _ ->
-          let acc = ("kind", "inductive")::acc in
-            acc
-      | Globnames.ConstructRef ((typ, _), _) -> 
-          let acc = ("kind", "construct")::acc in
-            add_construct_attrib acc typ
-
-      | Globnames.VarRef _ -> assert false
-    in acc
 
   let type_of_logical_kind =
 	let open Decl_kinds in function
@@ -272,7 +225,7 @@ end = struct
 	  | Globnames.IndRef ind -> 
 		("kind", type_of_ind ind) :: acc	
 
-	  | Globnames.ConstRef _ ->
+	  | Globnames.VarRef _ ->
 		assert false
 
   let pp_attribs fmt attribs =
