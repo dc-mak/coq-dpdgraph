@@ -71,6 +71,7 @@ exception NoDef of Globnames.global_reference
 let collect_dependance gref = 
   match gref with
   | Globnames.VarRef _ -> assert false
+
   | Globnames.ConstRef cst ->
       let cb = Environ.lookup_constant cst (Global.env()) in
       let cl = match Global.body_of_constant_body cb with
@@ -80,10 +81,17 @@ let collect_dependance gref =
         | Declarations.RegularArity t -> t::cl
         | Declarations.TemplateArity _ ->  cl in
       List.fold_right collect_long_names cl Data.empty
-  | Globnames.IndRef i | Globnames.ConstructRef (i,_) -> 
+
+  | Globnames.IndRef i ->
       let _, indbody = Global.lookup_inductive i in
       let ca = indbody.Declarations.mind_user_lc in
-        Array.fold_right collect_long_names ca Data.empty
+      Array.fold_right collect_long_names ca Data.empty
+
+ | Globnames.ConstructRef (i,_) -> 
+      let _, indbody = Global.lookup_inductive i in
+      let ca = indbody.Declarations.mind_user_lc in
+      (* So a constructor and its type are linked, BUT WRONG WAY AROUND *)
+      add_inductive i (Array.fold_right collect_long_names ca Data.empty)
 
 let display_dependance gref = 
   let display d =
