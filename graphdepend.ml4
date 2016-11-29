@@ -13,7 +13,7 @@ open Pp
 open Constrarg
 open Stdarg
 
-let debug msg = if false then Feedback.msg_debug msg
+let debug msg = if true then Feedback.msg_debug msg
 
 let feedback msg = Feedback.msg_notice (str "Info: " ++ msg)
 
@@ -92,17 +92,6 @@ module G = struct
 
   let add_edge (nds, eds) n1 n2 nb = nds, Edges.add (n1, n2, nb) eds
 
-  (* let succ (_nds, eds) n =
-    let do_e e acc =
-      if Node.equal n (Edge.src e) then (Edge.dst e)::acc else acc
-    in Edges.fold do_e eds []
-
-  let pred (_nds, eds) n =
-    let do_e e acc =
-      if Node.equal n (Edge.dst e) then (Edge.src e)::acc else acc
-    in Edges.fold do_e eds []
-   *)
-
   let iter_vertex fv (nds, _eds) =
     Hashtbl.iter (fun gref id -> fv (id, gref)) nds
 
@@ -156,12 +145,7 @@ module Out : sig
   val file : G.t -> unit
 end = struct
 
-  let add_construct_attrib acc typ =
-    let type_str = Names.KerName.to_string (Names.MutInd.user typ) in
-    let () = debug (str "Added type_str: " ++ str type_str) in
-    ("type", "\"" ^ type_str ^ "\"" ) :: acc
-
-  let type_of_logical_kind =
+  let type_of_constref =
 	let open Decl_kinds in function
 	| IsDefinition def ->
 		(match def with
@@ -209,24 +193,48 @@ end = struct
 	  | CoFinite -> "coind"
 	  end
 
-  let add_gref_attrib acc gref id =
+  let get_constr_type typ =
+    Names.KerName.to_string (Names.MutInd.user typ)
+
+  (*
+  let add_construct_attrib acc typ =
+    let type_str = get_constr_type typ in
+    let () = debug (str "Add type_str: " ++ str type_str) in
+    ("type", "\"" ^ type_str ^ "\"" ) :: acc
+  *)
+
+  let type_of_gref gref = 
 	if Typeclasses.is_class gref then
-	  ("kind", "class") :: acc
+	  "class"
 	else
 	  match gref with
 	  | Globnames.ConstRef cst ->
-		  let kind = type_of_logical_kind (Decls.constant_kind cst) in
-		  ("kind", kind) :: acc
+		type_of_constref (Decls.constant_kind cst)
 
 	  | Globnames.ConstructRef ((typ, _), _) -> 
-		let acc = ("kind", "construct")::acc in
-		add_construct_attrib acc typ
+		"construct"
 
 	  | Globnames.IndRef ind -> 
-		("kind", type_of_ind ind) :: acc	
+		type_of_ind ind
 
 	  | Globnames.VarRef _ ->
 		assert false
+
+  let add_gref_attrib acc gref id =
+	let acc = ("kind", type_of_gref gref) :: acc in
+	match gref with
+	| Globnames.ConstructRef ((typ, _), _) ->
+      acc
+      (*
+	  add_construct_attrib acc typ
+      *)
+
+	| Globnames.ConstRef _
+	| Globnames.IndRef _ -> 
+	  acc
+
+	| Globnames.VarRef _ ->
+	  assert false
 
   let pp_attribs fmt attribs =
       List.iter (fun (a,b) -> Format.fprintf fmt "%s=%s, " a b) attribs
@@ -241,10 +249,33 @@ end = struct
         pp_attribs acc
 
   let out_edge fmt _g e =
-    let edge_attribs = ("weight", string_of_int (G.Edge.nb_use e))::[] in
+
+    let matches typ n =
+      let dirname, name = G.Node.split_name n in
+      get_constr_type typ = dirname ^ "." ^ name in
+
+    (* incorporate src & dst types, flip if constructor & ind & match
+     * TO FIX WRONG WAY DEPENDENCY LINK FROM SEARCHDEPEND.ML4 *) let src, dst =
+      let src, dst = G.Edge.src e, G.Edge.dst e in
+      match G.Node.gref src, G.Node.gref dst with
+      | Globnames.ConstructRef ((typ, _), _) as src_gref,
+      ( Globnames.IndRef _ as dst_gref ) when matches typ dst ->
+        dst, src
+      | _, _ ->
+        src, dst in
+
+    let edge_type =
+      type_of_gref (G.Node.gref src)
+      ^ "_USED_BY_"
+      ^ type_of_gref (G.Node.gref dst) in
+
+    let edge_attribs =
+      [ ("type", edge_type) ; ("weight", string_of_int (G.Edge.nb_use e))] in
+
     Format.fprintf fmt "E: %d %d [%a];@."
-      (G.Node.id (G.Edge.src e)) (G.Node.id (G.Edge.dst e))
-      pp_attribs edge_attribs
+        (G.Node.id src)
+        (G.Node.id dst)
+        pp_attribs edge_attribs
 
   let out_graph fmt g =
     G.iter_vertex (out_node fmt g) g;
