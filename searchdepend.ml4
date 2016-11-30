@@ -8,7 +8,6 @@
 (*        (see the enclosed LICENSE file for mode details)                    *)
 (*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*)
 
-
 open Pp
 
 module Data = struct
@@ -22,6 +21,7 @@ module Data = struct
 
       (* [f gref n acc] *)
   let fold f d acc = Globnames.Refmap.fold f d acc
+
 end
 
 let add_identifier (x:Names.identifier)(d:Data.t) = 
