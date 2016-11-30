@@ -1,6 +1,6 @@
 (*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*)
 (*            This file is part of the DpdGraph tools.                        *)
-(*   Copyright (C) 2009-2015 Anne Pacalet (Anne.Pacalet@free.fr)           *)
+(*   Copyright (C) 2009-2015 Anne Pacalet (Anne.Pacalet@free.fr)              *)
 (*             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                                *)
 (*        This file is distributed under the terms of the                     *)
 (*         GNU Lesser General Public License Version 2.1                      *)
@@ -13,6 +13,7 @@ open Pp
 open Constrarg
 open Stdarg
 
+(* Feedback functions *)
 let debug msg = if true then Feedback.msg_debug msg
 
 let feedback msg = Feedback.msg_notice (str "Info: " ++ msg)
@@ -23,36 +24,46 @@ let error msg = Feedback.msg_error (str "Error: " ++ msg)
 
 let filename = ref "graph.dpd"
 
-let get_dirlist_grefs dirlist =
-  let selected_gref = ref [] in
-  let select gref env constr =
-    if Search.module_filter (dirlist, false) gref env constr then
-    (debug (str "Select " ++ Printer.pr_global gref);
-     selected_gref := gref::!selected_gref)
-  in
-    Search.generic_search None select;
-    !selected_gref
+(* Copied from 4.04 version of OCaml stdlib *)
+let split_on_char (sep : char) (s : string) : string list =
+  let r = ref [] in
+  let j = ref (String.length s) in
+  for i = String.length s - 1 downto 0 do
+    if String.unsafe_get s i = sep then begin
+      r := String.sub s (i + 1) (!j - i - 1) :: !r;
+      j := i
+    end
+  done;
+  String.sub s 0 !j :: !r
 
+(** Type of Object to track dependencies between *)
+(** Graph *)
 module G = struct
 
   module Node = struct
-    type t = int * Globnames.global_reference
+
+    type obj =
+      | Gref of Globnames.global_reference
+      | Module of Names.ModPath.t
+
+    type t = int * obj
     let id n = fst n
-    let gref n = snd n
+    let obj n = snd n
     let compare n1 n2 = Pervasives.compare (id n1) (id n2)
     let equal n1 n2 = 0 = compare n1 n2
 
-    let full_name n =
-      let qualid =
-        Nametab.shortest_qualid_of_global Names.Idset.empty (gref n)
-      in Libnames.string_of_qualid qualid
+    let split_name = function
+	  | Gref gref ->
+		  let dir, id = Libnames.repr_path (Nametab.path_of_global gref) in
+		  let dir, name = Names.DirPath.to_string dir, Names.Id.to_string id in
+		  ((if dir = "<>" then "" else dir), name)
 
-    let split_name n =
-      let glob_ref = gref n in
-      let dirpath = Names.DirPath.to_string (Nametab.dirpath_of_global glob_ref)
-      and name = Names.Id.to_string (Nametab.basename_of_global glob_ref) in
-      ((if dirpath = "<>" then "" else dirpath), name)
-
+	  | Module modpath ->
+		  let mod_str = Names.DirPath.to_string (Names.ModPath.dp modpath) in
+		  let () = assert (mod_str <> "<>") in 
+		  match split_on_char '.'  mod_str with
+			| [] -> assert false
+			| x :: xs -> (String.concat "." xs, x)
   end
 
   module Edge = struct
@@ -67,78 +78,178 @@ module G = struct
 
   module Edges = Set.Make (Edge)
 
-  type t = (Globnames.global_reference, int) Hashtbl.t * Edges.t
+  type t = (Node.obj, int) Hashtbl.t * Edges.t
 
   let empty () = Hashtbl.create 10, Edges.empty
 
   (** new numbers to store global references in nodes *)
-  let gref_cpt = ref 0
+  let obj_cpt = ref 0
 
   let nb_vertex (nds, _eds) = Hashtbl.length nds
 
-  let get_node (nds, eds) gref =
-    try Some (Hashtbl.find nds gref, gref)
+  let get_node (nds, eds) obj =
+    try Some (Hashtbl.find nds obj, obj)
     with Not_found -> None
 
   (** *)
-  let add_node ((nds, eds) as g) gref =
-    match get_node g gref with
+  let add_node ((nds, eds) as g) obj = 
+    match get_node g obj with
       | Some n -> g, n
       | None ->
-          gref_cpt := !gref_cpt + 1;
-          Hashtbl.add nds gref !gref_cpt;
-          let n = (!gref_cpt, gref) in
-            g, n
+          obj_cpt := !obj_cpt + 1; 
+          Hashtbl.add nds obj !obj_cpt;
+          let n = (!obj_cpt, obj) in
+          g, n
 
   let add_edge (nds, eds) n1 n2 nb = nds, Edges.add (n1, n2, nb) eds
 
   let iter_vertex fv (nds, _eds) =
-    Hashtbl.iter (fun gref id -> fv (id, gref)) nds
+    Hashtbl.iter (fun obj id -> fv (id, obj)) nds
 
   let iter_edges_e fe (_nds, eds) = Edges.iter fe eds
+
 end
 
-(** add the dependencies of gref in the graph (gref is already in).
-  * If [all], add also the nodes of the dependancies that are not in,
+(* Add module dependencies recursively *)
+let rec add_mod_dpd_rec graph todo parent modpath =
+  match modpath with
+	| Names.ModPath.MPfile _
+	| Names.ModPath.MPbound _ ->
+		(match G.get_node graph (G.Node.Module modpath) with
+		  | Some node ->
+			  let graph = G.add_edge graph parent node 1 in
+			  graph, todo
+
+		  | None ->
+			  let graph, node = G.add_node graph (G.Node.Module modpath) in
+			  let graph = G.add_edge graph parent node 1 in
+			  graph, node :: todo)
+
+	| Names.ModPath.MPdot (child, label) ->
+		(match G.get_node graph (G.Node.Module modpath) with
+		  | Some node ->
+			  let graph = G.add_edge graph parent node 1 in
+			  add_mod_dpd_rec graph todo node child
+
+		  | None ->
+			  let graph, node = G.add_node graph (G.Node.Module modpath) in
+			  let graph = G.add_edge graph parent node 1 in
+			  add_mod_dpd_rec graph (node :: todo) node child)
+
+(* Add dependencies of modules *)
+let add_module_dpds graph all todo modpath =
+  let path, name = G.Node.split_name (G.Node.Module modpath) in
+  let () = debug (str "Add module dpds " ++ str (path ^ "." ^ name)) in
+  (match modpath with
+	| Names.ModPath.MPfile _
+	| Names.ModPath.MPbound _ ->
+		(match G.get_node graph (G.Node.Module modpath) with
+		  | Some _ ->
+			  graph, todo
+		  | None ->
+			  let g, n = G.add_node graph (G.Node.Module modpath) in
+			  g, n :: todo)
+(* ???
+			  if all then
+				let g, n = G.add_node graph (G.Node.Module modpath) in
+				g, n :: todo
+			  else
+				graph, todo)
+*)
+
+	| Names.ModPath.MPdot (child, _) ->
+		(match G.get_node graph (G.Node.Module modpath) with
+		  | Some node ->
+			  add_mod_dpd_rec graph todo node child
+		  | None ->
+			  let graph, node = G.add_node graph (G.Node.Module modpath) in
+			  add_mod_dpd_rec graph (node :: todo) node child))
+(* ???
+			  if all then
+				let graph, node = G.add_node graph (G.Node.Module modpath) in
+				add_mod_dpd_rec (node :: todo) graph node child
+			  else 
+				 graph, todo))
+*)
+
+let add_gref_module graph all todo gref =
+  let dir = Nametab.dirpath_of_global gref in
+  let qualid = Libnames.qualid_of_dirpath dir in
+  let modpath = Nametab.locate_module qualid in
+  let graph, todo = add_module_dpds graph all todo modpath in
+  match G.get_node graph (G.Node.Module modpath),
+        G.get_node graph (G.Node.Gref gref) with
+
+  | Some modp, Some gref ->
+      let graph = G.add_edge graph modp gref 1 in
+      graph, todo
+
+  | None, Some gref ->
+      let graph, modp = G.add_node graph (G.Node.Module modpath) in
+      let graph = G.add_edge graph modp gref 1 in
+      graph, todo 
+
+  | Some modp, None -> 
+      let graph, gref = G.add_node graph (G.Node.Gref gref) in
+      let graph = G.add_edge graph modp gref 1 in
+      graph, todo 
+
+  | None, None ->
+      let graph, gref = G.add_node graph (G.Node.Gref gref) in
+      let graph, modp = G.add_node graph (G.Node.Module modpath) in
+      let graph = G.add_edge graph modp gref 1 in
+      graph, todo 
+
+(** add the dependencies of obj in the graph (obj is already in).
+  * If [all], add also the nodes of the dependencies that are not in,
   * and return the list of the new nodes,
   * If not all, don't add nodes, and return an empty list. *)
-let add_gref_dpds graph ~all n_gref todo =
-  let gref = G.Node.gref n_gref in
-  debug (str "Add dpds " ++ Printer.pr_global gref);
-  let add_dpd dpd nb_use (g, td) = match G.get_node g dpd with
-    | Some n -> let g = G.add_edge g n_gref n nb_use in g, td
-    | None ->
-        if all then
-          let g, n = G.add_node g dpd in
-          let g = G.add_edge g n_gref n nb_use in
-            g, n::td
-        else g, td
-  in
-    try
-      let data = Searchdepend.collect_dependance gref in
-      let graph, todo = Searchdepend.Data.fold add_dpd data (graph, todo) in
-        graph, todo
-    with Searchdepend.NoDef gref -> (* nothing to do *) graph, todo
+let add_obj_dpds graph ~all n_obj todo =
+  match G.Node.obj n_obj with
+  | G.Node.Module modpath ->
+	  add_module_dpds graph all todo modpath
 
-(** add gref node and add it to the todo list
-* to process its dependencies later. *)
-let add_gref_only (graph, todo) gref =
-  debug (str "Add " ++ Printer.pr_global gref);
-  let graph, n = G.add_node graph gref in
-  let todo = n::todo in
-    graph, todo
+  | G.Node.Gref gref ->
+    let () = debug (str "Add dpds " ++ Printer.pr_global gref) in
+    let add_dpd dpd nb_use (g, td) =
+	  (match G.get_node g (G.Node.Gref dpd) with
+      | Some n ->
+          let g = G.add_edge g n_obj n nb_use in
+          g, td
 
-(** add the gref in [l] and build the dependencies according to [all] *)
-let add_gref_list_and_dpds graph ~all l =
-  let graph, todo = List.fold_left add_gref_only (graph, []) l in
-  let rec add_gref_dpds_rec graph todo = match todo with
+      | None -> 
+          if all then 
+            let g, n = G.add_node g (G.Node.Gref dpd) in
+            let g = G.add_edge g n_obj n nb_use in
+			g, n::td
+          else
+            g, td) in
+      try
+        let data = Searchdepend.collect_dependance gref in
+        let graph, todo = add_gref_module graph all todo gref in
+        let graph, todo = Searchdepend.Data.fold add_dpd data (graph, todo) in
+		graph, todo
+      with Searchdepend.NoDef gref ->
+        graph, todo (* nothing to do *)
+
+(** add obj node and add it to the todo list 
+ * to process its dependencies later. *)
+let add_obj_only (graph, todo) obj = 
+  let path, name = G.Node.split_name obj in
+  let () = debug (str "Add " ++ str (path ^ "." ^ name)) in
+  let graph, n = G.add_node graph obj in
+  graph, n :: todo
+
+(** add the obj in [l] and build the dependencies according to [all] *)
+let add_obj_list_and_dpds graph ~all l =
+  let graph, todo = List.fold_left add_obj_only (graph, []) l in 
+  let rec add_obj_dpds_rec graph todo = match todo with
     | [] -> graph
-    | n::todo ->
-        let graph, todo = add_gref_dpds graph ~all n todo in
-          add_gref_dpds_rec graph todo
-  in
-  let graph = add_gref_dpds_rec graph todo in
-    graph
+    | n::todo -> 
+        let graph, todo = add_obj_dpds graph ~all n todo in
+		add_obj_dpds_rec graph todo in
+
+  add_obj_dpds_rec graph todo
 
 (** Don't forget to update the README file if something is changed here *)
 module Out : sig
@@ -196,13 +307,6 @@ end = struct
   let get_constr_type typ =
     Names.KerName.to_string (Names.MutInd.user typ)
 
-  (*
-  let add_construct_attrib acc typ =
-    let type_str = get_constr_type typ in
-    let () = debug (str "Add type_str: " ++ str type_str) in
-    ("type", "\"" ^ type_str ^ "\"" ) :: acc
-  *)
-
   let type_of_gref gref = 
 	if Typeclasses.is_class gref then
 	  "class"
@@ -220,54 +324,44 @@ end = struct
 	  | Globnames.VarRef _ ->
 		assert false
 
-  let add_gref_attrib acc gref id =
-	let acc = ("kind", type_of_gref gref) :: acc in
-	match gref with
-	| Globnames.ConstructRef ((typ, _), _) ->
-      acc
-      (*
-	  add_construct_attrib acc typ
-      *)
 
-	| Globnames.ConstRef _
-	| Globnames.IndRef _ -> 
-	  acc
-
-	| Globnames.VarRef _ ->
-	  assert false
+  let type_of_obj = function
+	| G.Node.Gref gref -> 
+		type_of_gref gref
+	| G.Node.Module modpath ->
+        if Names.ModPath.is_bound modpath then "mod" else "file"
 
   let pp_attribs fmt attribs =
       List.iter (fun (a,b) -> Format.fprintf fmt "%s=%s, " a b) attribs
 
-  let out_node fmt g n =
-    let id = G.Node.id n in
-    let gref = G.Node.gref n in
-    let dirname, name = G.Node.split_name n in
+  let out_node fmt g n = 
+    let id, obj = G.Node.id n, G.Node.obj n in
+    let dirname, name = G.Node.split_name obj in
     let acc = if dirname = "" then [] else [("path", "\""^dirname^"\"")] in
-    let acc = add_gref_attrib acc gref name in
-      Format.fprintf fmt "N: %d \"%s\" [%a];@." id name
-        pp_attribs acc
+    let acc = ("kind", type_of_obj obj) :: acc in
+    Format.fprintf fmt "N: %d \"%s\" [%a];@." id name pp_attribs acc
 
   let out_edge fmt _g e =
 
     let matches typ n =
-      let dirname, name = G.Node.split_name n in
+      let dirname, name = G.Node.split_name (G.Node.obj n) in
       get_constr_type typ = dirname ^ "." ^ name in
 
     (* incorporate src & dst types, flip if constructor & ind & match
-     * TO FIX WRONG WAY DEPENDENCY LINK FROM SEARCHDEPEND.ML4 *) let src, dst =
+     * TO FIX WRONG WAY DEPENDENCY LINK FROM SEARCHDEPEND.ML4 *)
+     let src, dst =
       let src, dst = G.Edge.src e, G.Edge.dst e in
-      match G.Node.gref src, G.Node.gref dst with
-      | Globnames.ConstructRef ((typ, _), _) as src_gref,
-      ( Globnames.IndRef _ as dst_gref ) when matches typ dst ->
+      match G.Node.obj src, G.Node.obj dst with
+      | G.Node.Gref (Globnames.ConstructRef ((typ, _), _)),
+        G.Node.Gref (Globnames.IndRef _) when matches typ dst ->
         dst, src
       | _, _ ->
         src, dst in
 
     let edge_type =
-      type_of_gref (G.Node.gref src)
+      type_of_obj (G.Node.obj src)
       ^ "_USED_BY_"
-      ^ type_of_gref (G.Node.gref dst) in
+      ^ type_of_obj (G.Node.obj dst) in
 
     let edge_attribs =
       [ ("type", edge_type) ; ("weight", string_of_int (G.Edge.nb_use e))] in
@@ -294,15 +388,25 @@ end
 let mk_dpds_graph gref =
   let graph = G.empty () in
   let all = true in (* get all the dependencies recursively *)
-  let graph = add_gref_list_and_dpds graph ~all [gref] in
-    Out.file graph
+  let graph = add_obj_list_and_dpds graph ~all [G.Node.Gref gref] in
+  Out.file graph
+
+let get_dirlist_grefs dirlist =
+  let selected_gref = ref [] in
+  let select gref env constr = 
+    if Search.module_filter (dirlist, false) gref env constr then 
+    (debug (str "Select " ++ Printer.pr_global gref);
+     selected_gref := gref::!selected_gref)
+  in 
+    Search.generic_search None select;
+    !selected_gref
 
 let file_graph_depend dirlist =
   let graph = G.empty () in
   let grefs = get_dirlist_grefs dirlist in
   let all = false in (* then add the dependencies only to existing nodes *)
-  let graph = add_gref_list_and_dpds graph ~all grefs in
-    Out.file graph
+  let graph = add_obj_list_and_dpds graph ~all (List.map (fun x -> G.Node.Gref x) grefs) in
+  Out.file graph
 
 let locate_mp_dirpath ref =
   let (loc,qid) = Libnames.qualid_of_reference ref in
