@@ -331,7 +331,10 @@ end = struct
 	| G.Node.Gref gref -> 
 		type_of_gref gref
 	| G.Node.Module modpath ->
-        if Names.ModPath.is_bound modpath then "mod" else "file"
+        (match modpath with
+        | Names.ModPath.MPbound _ -> "bound"
+        | Names.ModPath.MPdot _ -> "mod"
+        | Names.ModPath.MPfile _ -> "file")
 
   let pp_attribs fmt attribs =
       List.iter (fun (a,b) -> Format.fprintf fmt "%s=%s, " a b) attribs
