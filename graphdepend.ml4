@@ -59,11 +59,11 @@ module G = struct
 		  ((if dir = "<>" then "" else dir), name)
 
 	  | Module modpath ->
-		  let mod_str = Names.DirPath.to_string (Names.ModPath.dp modpath) in
+		  let mod_str = Names.ModPath.to_string modpath in
 		  let () = assert (mod_str <> "<>") in 
-		  match split_on_char '.'  mod_str with
+		  match List.rev (split_on_char '.'  mod_str) with
 			| [] -> assert false
-			| x :: xs -> (String.concat "." xs, x)
+			| x :: xs -> (String.concat "." (List.rev xs), x)
   end
 
   module Edge = struct
@@ -112,9 +112,11 @@ end
 
 (* Add module dependencies recursively *)
 let rec add_mod_dpd_rec graph todo parent modpath =
+  let path, name = G.Node.split_name (G.Node.Module modpath) in
   match modpath with
 	| Names.ModPath.MPfile _
 	| Names.ModPath.MPbound _ ->
+        let () = debug (str "Add rec base module dpds " ++ str (path ^ "." ^ name)) in
 		(match G.get_node graph (G.Node.Module modpath) with
 		  | Some node ->
 			  let graph = G.add_edge graph parent node 1 in
@@ -126,6 +128,7 @@ let rec add_mod_dpd_rec graph todo parent modpath =
 			  graph, node :: todo)
 
 	| Names.ModPath.MPdot (child, label) ->
+        let () = debug (str "Add rec rec module dpds " ++ str (path ^ "." ^ name)) in
 		(match G.get_node graph (G.Node.Module modpath) with
 		  | Some node ->
 			  let graph = G.add_edge graph parent node 1 in
@@ -139,10 +142,10 @@ let rec add_mod_dpd_rec graph todo parent modpath =
 (* Add dependencies of modules *)
 let add_module_dpds graph all todo modpath =
   let path, name = G.Node.split_name (G.Node.Module modpath) in
-  let () = debug (str "Add module dpds " ++ str (path ^ "." ^ name)) in
   (match modpath with
 	| Names.ModPath.MPfile _
 	| Names.ModPath.MPbound _ ->
+        let () = debug (str "Add module dpds " ++ str (path ^ "." ^ name)) in
 		(match G.get_node graph (G.Node.Module modpath) with
 		  | Some _ ->
 			  graph, todo
@@ -158,6 +161,7 @@ let add_module_dpds graph all todo modpath =
 *)
 
 	| Names.ModPath.MPdot (child, _) ->
+        let () = debug (str "Add rec module dpds " ++ str (path ^ "." ^ name)) in
 		(match G.get_node graph (G.Node.Module modpath) with
 		  | Some node ->
 			  add_mod_dpd_rec graph todo node child
@@ -173,9 +177,9 @@ let add_module_dpds graph all todo modpath =
 *)
 
 let add_gref_module graph all todo gref =
-  let dir = Nametab.dirpath_of_global gref in
-  let qualid = Libnames.qualid_of_dirpath dir in
-  let modpath = Nametab.locate_module qualid in
+  let gref_dir = Nametab.dirpath_of_global gref in
+  let qual_dir= Libnames.qualid_of_dirpath gref_dir in
+  let modpath  = Nametab.locate_module qual_dir in
   let graph, todo = add_module_dpds graph all todo modpath in
   match G.get_node graph (G.Node.Module modpath),
         G.get_node graph (G.Node.Gref gref) with
@@ -212,7 +216,7 @@ let add_obj_dpds graph ~all n_obj todo =
   | G.Node.Gref gref ->
     let () = debug (str "Add dpds " ++ Printer.pr_global gref) in
     let add_dpd dpd nb_use (g, td) =
-	  (match G.get_node g (G.Node.Gref dpd) with
+      (match G.get_node g (G.Node.Gref dpd) with
       | Some n ->
           let g = G.add_edge g n_obj n nb_use in
           g, td
