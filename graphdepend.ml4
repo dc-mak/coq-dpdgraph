@@ -22,18 +22,6 @@ let error msg = Pp.msgerrnl (str "Error: " ++ msg)
 
 let filename = ref "graph.dpd"
 
-(* Copied from 4.04 version of OCaml stdlib *)
-let split_on_char (sep : char) (s : string) : string list =
-  let r = ref [] in
-  let j = ref (String.length s) in
-  for i = String.length s - 1 downto 0 do
-    if String.unsafe_get s i = sep then begin
-      r := String.sub s (i + 1) (!j - i - 1) :: !r;
-      j := i
-    end
-  done;
-  String.sub s 0 !j :: !r
-
 (** Type of Object to track dependencies between *)
 (** Graph *)
 module G = struct
@@ -57,11 +45,10 @@ module G = struct
 		  ((if dir = "<>" then "" else dir), name)
 
 	  | Module modpath ->
-		  let mod_str = Names.ModPath.to_string modpath in
-		  let () = assert (mod_str <> "<>") in 
-		  match List.rev (split_on_char '.'  mod_str) with
-			| [] -> assert false
-			| x :: xs -> (String.concat "." (List.rev xs), x)
+		  match Names.DirPath.repr (Names.ModPath.dp modpath) with
+          | [] -> assert false
+          | x :: xs ->
+              (String.concat "." (List.rev_map Names.Id.to_string xs), Names.Id.to_string x)
   end
 
   module Edge = struct
@@ -108,77 +95,67 @@ module G = struct
 
 end
 
-(* Add module dependencies recursively *)
-let rec add_mod_dpd_rec graph todo parent modpath =
+(* Add module dependency between parent and child *)
+let rec add_mod_dpd (graph, todo) (parent, child) =
+  (match G.get_node graph (G.Node.Module parent),
+         G.get_node graph (G.Node.Module child) with
+
+  | Some parent_node, Some child_node ->
+    let graph = G.add_edge graph parent_node child_node 1 in
+    graph, todo
+
+  | Some parent_node, None ->
+    let graph, child_node = G.add_node graph (G.Node.Module child) in
+    let graph = G.add_edge graph parent_node child_node 1 in
+    graph, todo
+
+  | None, Some child_node ->
+    let graph, parent_node = G.add_node graph (G.Node.Module parent) in
+    let graph = G.add_edge graph parent_node child_node 1 in
+    graph, todo
+
+  | None, None -> 
+    let graph, child_node = G.add_node graph (G.Node.Module child) in
+    let graph, parent_node = G.add_node graph (G.Node.Module parent) in
+    let graph = G.add_edge graph parent_node child_node 1 in
+    graph, todo)
+
+(* To include directories: potential point for inefficiency due to copying *)
+let rec get_mods_rec = function 
+  | [] -> []
+  | _ :: _ as xs ->
+      let dp = Names.DirPath.make xs in
+      let () = debug (str "Add inferred dpds " ++ str (Names.DirPath.to_string dp)) in
+      Names.ModPath.MPfile dp :: get_mods_rec xs
+
+let rec get_mod_dirs modpath =
   let path, name = G.Node.split_name (G.Node.Module modpath) in
-  match modpath with
-	| Names.ModPath.MPfile _
-	| Names.ModPath.MPbound _ ->
-        let () = debug (str "Add rec base module dpds " ++ str (path ^ "." ^ name)) in
-		(match G.get_node graph (G.Node.Module modpath) with
-		  | Some node ->
-			  let graph = G.add_edge graph parent node 1 in
-			  graph, todo
+  let () = debug (str "Add module " ++ str (path ^ "." ^ name)) in
+ (match modpath with
+  | Names.ModPath.MPfile dirpath ->
+    modpath :: get_mods_rec (Names.DirPath.repr dirpath)
 
-		  | None ->
-			  let graph, node = G.add_node graph (G.Node.Module modpath) in
-			  let graph = G.add_edge graph parent node 1 in
-			  graph, node :: todo)
+  | Names.ModPath.MPbound mbid ->
+    let (_, _, dirpath) = Names.MBId.repr mbid in
+    modpath :: get_mods_rec (Names.DirPath.repr dirpath)
 
-	| Names.ModPath.MPdot (child, label) ->
-        let () = debug (str "Add rec rec module dpds " ++ str (path ^ "." ^ name)) in
-		(match G.get_node graph (G.Node.Module modpath) with
-		  | Some node ->
-			  let graph = G.add_edge graph parent node 1 in
-			  add_mod_dpd_rec graph todo node child
+  | Names.ModPath.MPdot (child, _) ->
+    modpath :: get_mod_dirs child)
 
-		  | None ->
-			  let graph, node = G.add_node graph (G.Node.Module modpath) in
-			  let graph = G.add_edge graph parent node 1 in
-			  add_mod_dpd_rec graph (node :: todo) node child)
+let rec pair_up = function
+  | [] | [_] -> []
+  | x :: y :: xs -> (x, y) :: pair_up (y :: xs)
 
 (* Add dependencies of modules *)
-let add_module_dpds graph all todo modpath =
-  let path, name = G.Node.split_name (G.Node.Module modpath) in
-  (match modpath with
-	| Names.ModPath.MPfile _
-	| Names.ModPath.MPbound _ ->
-        let () = debug (str "Add module dpds " ++ str (path ^ "." ^ name)) in
-		(match G.get_node graph (G.Node.Module modpath) with
-		  | Some _ ->
-			  graph, todo
-		  | None ->
-			  let g, n = G.add_node graph (G.Node.Module modpath) in
-			  g, n :: todo)
-(* ???
-			  if all then
-				let g, n = G.add_node graph (G.Node.Module modpath) in
-				g, n :: todo
-			  else
-				graph, todo)
-*)
-
-	| Names.ModPath.MPdot (child, _) ->
-        let () = debug (str "Add rec module dpds " ++ str (path ^ "." ^ name)) in
-		(match G.get_node graph (G.Node.Module modpath) with
-		  | Some node ->
-			  add_mod_dpd_rec graph todo node child
-		  | None ->
-			  let graph, node = G.add_node graph (G.Node.Module modpath) in
-			  add_mod_dpd_rec graph (node :: todo) node child))
-(* ???
-			  if all then
-				let graph, node = G.add_node graph (G.Node.Module modpath) in
-				add_mod_dpd_rec (node :: todo) graph node child
-			  else 
-				 graph, todo))
-*)
+let add_module_dpds graph todo modpath =
+  let mods_to_add = pair_up (get_mod_dirs modpath) in
+  List.fold_left add_mod_dpd (graph, todo) mods_to_add
 
 let add_gref_module graph all todo gref =
   let gref_dir = Nametab.dirpath_of_global gref in
   let qual_dir= Libnames.qualid_of_dirpath gref_dir in
   let modpath  = Nametab.locate_module qual_dir in
-  let graph, todo = add_module_dpds graph all todo modpath in
+  let graph, todo = add_module_dpds graph todo modpath in
   match G.get_node graph (G.Node.Module modpath),
         G.get_node graph (G.Node.Gref gref) with
 
@@ -209,7 +186,7 @@ let add_gref_module graph all todo gref =
 let add_obj_dpds graph ~all n_obj todo =
   match G.Node.obj n_obj with
   | G.Node.Module modpath ->
-	  add_module_dpds graph all todo modpath
+	  add_module_dpds graph todo modpath
 
   | G.Node.Gref gref ->
     let () = debug (str "Add dpds " ++ Printer.pr_global gref) in
