@@ -12,7 +12,7 @@ DECLARE PLUGIN "dpdgraph"
 open Pp
 
 (* Feedback functions *)
-let debug msg = if true then Pp.msgnl msg
+let debug msg = if true then Pp.msgnl (str "Debug: " ++ msg)
 
 let feedback msg = Pp.msgnl (str "Info: " ++ msg)
 
@@ -94,6 +94,44 @@ module G = struct
   let iter_edges_e fe (_nds, eds) = Edges.iter fe eds
 
 end
+
+(* vernacentries.ml *)
+let type_of_gref gref id =
+  try
+	let glob = Glob_term.GRef(Loc.ghost, gref, None) in
+	let env = Global.env() in
+	let sigma = Evd.from_env env in
+	let sigma', c = Pretyping.understand_tcc env sigma glob in
+	let sigma2 = Evarconv.consider_remaining_unif_problems env sigma' in
+	let sigma3, nf = Evarutil.nf_evars_and_universes sigma2 in
+	let pl, uctx = Evd.universe_context sigma3 in
+	let env2 = Environ.push_context uctx (Evarutil.nf_env_evar sigma3 env) in
+	let c2 = nf c in
+	let j =
+	  if Evarutil.has_undefined_evars sigma3 c2 then
+		Evarutil.j_nf_evar sigma3 (Retyping.get_judgment_of env sigma3 c2)
+	  else
+		(* OK to call kernel which does not support evars *)
+		Arguments_renaming.rename_typing env2 c2 in
+	let l = Evar.Set.union (Evd.evars_of_term j.Environ.uj_val) (Evd.evars_of_term j.Environ.uj_type) in
+	let j = { j with Environ.uj_type = Reductionops.nf_betaiota sigma3 j.Environ.uj_type } in
+    let msg =
+	string_of_ppcmds
+        (Prettyp.print_judgment env2 sigma3 j
+        ++ Printer.pr_ne_evar_set
+            (fnl () ++ str "where" ++ fnl ())
+            (mt ()) sigma3 l ++ Printer.pr_universe_ctx sigma uctx) in
+    let () = debug (str "TYPE: " ++ str msg) in
+    msg
+  with _ -> 
+	begin
+	  warning (str "unable to determine the type of the type for " ++ str (string_of_int id));
+	  "NO TYPE AVAILABLE"
+	end
+
+let type_of_obj obj id = match obj with
+  | G.Node.Gref gref -> type_of_gref gref id
+  | G.Node.Module modp -> ""
 
 (* Add module dependency between parent and child *)
 let rec add_mod_dpd (graph, todo) (parent, child) =
@@ -235,27 +273,27 @@ module Out : sig
   val file : G.t -> unit 
 end = struct
 
-  let type_of_constref =
+  let kind_of_constref =
 	let open Decl_kinds in function
 	| IsDefinition def ->
 		(match def with
-		| Definition -> "def"
-		| Coercion -> "coe"
+		| Definition -> "definition"
+		| Coercion -> "coercion"
 		| SubClass -> "subclass"
 		| CanonicalStructure -> "canonstruc"
-		| Example -> "ex"
-		| Fixpoint -> "def"
-		| CoFixpoint -> "def"
+		| Example -> "example"
+		| Fixpoint -> "definition"
+		| CoFixpoint -> "definition"
 		| Scheme -> "scheme"
-		| StructureComponent -> "proj"
-		| IdentityCoercion -> "coe"
-		| Instance -> "inst"
-		| Method -> "meth")
+		| StructureComponent -> "projection"
+		| IdentityCoercion -> "coercion"
+		| Instance -> "instance"
+		| Method -> "method")
 	| IsAssumption a ->
 		(match a with
-		| Definitional -> "defax"
-		| Logical -> "prfax"
-		| Conjectural -> "prfax")
+		| Definitional -> "assumption_definitional"
+		| Logical -> "assumption_logical"
+		| Conjectural -> "assumption_conjectural")
 	| IsProof th ->
 		(match th with
 		| Theorem
@@ -264,49 +302,49 @@ end = struct
 		| Remark
 		| Property
 		| Proposition
-		| Corollary -> "thm")
+		| Corollary -> "theorem")
 
-  let type_of_ind ind =
+  let kind_of_ind ind =
 	let (mib,oib) = Inductive.lookup_mind_specif (Global.env ()) ind in
 	if mib.Declarations.mind_record <> None then
 	  let open Decl_kinds in
 	  begin match mib.Declarations.mind_finite with
-	  | Finite -> "indrec"
-	  | BiFinite -> "rec"
-	  | CoFinite -> "corec"
+	  | Finite -> "recursive_inductive"
+	  | BiFinite -> "recursive"
+	  | CoFinite -> "corecursive"
 	  end
 	else
 	  let open Decl_kinds in
 	  begin match mib.Declarations.mind_finite with
-	  | Finite -> "ind"
+	  | Finite -> "inductive"
 	  | BiFinite -> "variant"
-	  | CoFinite -> "coind"
+	  | CoFinite -> "coinductive"
 	  end
 
   let get_constr_type typ =
     Names.KerName.to_string (Names.MutInd.user typ)
 
-  let type_of_gref gref = 
+  let kind_of_gref gref = 
 	if Typeclasses.is_class gref then
 	  "class"
 	else
 	  match gref with
 	  | Globnames.ConstRef cst ->
-		type_of_constref (Decls.constant_kind cst)
+		kind_of_constref (Decls.constant_kind cst)
 
 	  | Globnames.ConstructRef ((typ, _), _) -> 
-		"construct"
+		"constructor"
 
 	  | Globnames.IndRef ind -> 
-		type_of_ind ind
+		kind_of_ind ind
 
 	  | Globnames.VarRef _ ->
 		assert false
 
 
-  let type_of_obj = function
+  let kind_of_obj = function
 	| G.Node.Gref gref -> 
-		type_of_gref gref
+		kind_of_gref gref
 	| G.Node.Module modpath ->
         (match modpath with
         | Names.ModPath.MPbound _ -> "bound"
@@ -320,7 +358,8 @@ end = struct
     let id, obj = G.Node.id n, G.Node.obj n in
     let dirname, name = G.Node.split_name obj in
     let acc = if dirname = "" then [] else [("path", "\""^dirname^"\"")] in
-    let acc = ("kind", type_of_obj obj) :: acc in
+    let acc = ("kind", kind_of_obj obj) :: acc in
+    let acc = ("type", type_of_obj obj id) :: acc in
     Format.fprintf fmt "N: %d \"%s\" [%a];@." id name pp_attribs acc
 
   let out_edge fmt _g e =
@@ -341,9 +380,9 @@ end = struct
         src, dst in
 
     let edge_type =
-      type_of_obj (G.Node.obj src)
+      kind_of_obj (G.Node.obj src)
       ^ "_USED_BY_"
-      ^ type_of_obj (G.Node.obj dst) in
+      ^ kind_of_obj (G.Node.obj dst) in
 
     let edge_attribs =
       [ ("type", edge_type) ; ("weight", string_of_int (G.Edge.nb_use e))] in
