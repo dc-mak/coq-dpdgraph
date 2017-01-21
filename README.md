@@ -1,3 +1,15 @@
+Quick start
+===========
+
+Installation and compilation instructions are below.
+
+```
+cd <dir-of-coq-file>
+coqc \<other-flags\> -R \<path-to-repo\> dpdgraph <coq-file>
+./dpd2csv -keep-trans <dpd-file>
+./build_graph.sh <path-to-neo4j> <path-to-csv-files> <name-of-database-dir>
+```
+
 coq-dpdgraph
 ============
 
