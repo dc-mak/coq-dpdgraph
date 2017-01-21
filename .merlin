@@ -1,0 +1,37 @@
+FLG -rectypes -thread
+
+B /home/dhruv/.opam/4.03.0/lib/coq/kernel 
+B /home/dhruv/.opam/4.03.0/lib/coq/lib 
+B /home/dhruv/.opam/4.03.0/lib/coq/library 
+B /home/dhruv/.opam/4.03.0/lib/coq/parsing 
+B /home/dhruv/.opam/4.03.0/lib/coq/pretyping 
+B /home/dhruv/.opam/4.03.0/lib/coq/interp 
+B /home/dhruv/.opam/4.03.0/lib/coq/printing 
+B /home/dhruv/.opam/4.03.0/lib/coq/intf 
+B /home/dhruv/.opam/4.03.0/lib/coq/proofs 
+B /home/dhruv/.opam/4.03.0/lib/coq/tactics 
+B /home/dhruv/.opam/4.03.0/lib/coq/tools 
+B /home/dhruv/.opam/4.03.0/lib/coq/toplevel 
+B /home/dhruv/.opam/4.03.0/lib/coq/stm 
+B /home/dhruv/.opam/4.03.0/lib/coq/grammar 
+B /home/dhruv/.opam/4.03.0/lib/coq/config 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/btauto 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/cc 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/decl_mode 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/derive 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/extraction 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/firstorder 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/fourier 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/funind 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/micromega 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/nsatz 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/omega 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/quote 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/romega 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/rtauto 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/setoid_ring 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/syntax 
+B /home/dhruv/.opam/4.03.0/lib/coq/plugins/xml
+
+PKG threads.posix
+PKG ocamlgraph
