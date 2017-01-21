@@ -95,13 +95,12 @@ let reduce_graph g =
     try Hashtbl.find reach_tbl v (* already done *)
     with Not_found -> 
       let nb_succ_before = List.length (G.succ g v) in
+      (* add [s] successors *)
       let add_succ_reachable acc s =
-        let acc = (* add [s] successors *)
-          List.fold_left (fun set x -> Vset.add x set) acc (G.succ g s)
-        in (Vset.union acc (reachable s))
-      in
+        let acc = List.fold_left (fun set x -> Vset.add x set) acc (G.succ g s) in
+        Vset.union acc (reachable s) in
       let acc = List.fold_left add_succ_reachable Vset.empty (G.succ g v) in
-        (* try to remove edges *)
+      (* try to remove edges *)
       let rm_edge sv = if Vset.mem sv acc then G.remove_edge g v sv in
       List.iter rm_edge (G.succ g v);
       let nb_succ_after = List.length (G.succ g v) in
