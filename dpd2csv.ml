@@ -48,7 +48,7 @@ let main () =
     Arg.parse spec_args memo_arg usage_msg;
     if !version_option 
     then Format.printf "This is '%s' (part of DpdGraph tools - version %s)@."
-           (Filename.basename Sys.argv.(0)) Version.version
+      (Filename.basename Sys.argv.(0)) Version.version
     else match !args with
       |  [] -> Dpd_compute.error "no source file to process ?@.";
                Arg.usage spec_args usage_msg
@@ -57,4 +57,3 @@ let main () =
           ignore (List.fold_left (fun n f -> do_file n f; n+1) 1 l)
 
 let () = main ()
-
