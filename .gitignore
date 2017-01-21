@@ -22,8 +22,8 @@ config.status
 *.v.d
 *.vo
 
-coqthmdep
 dpd2dot
+dpd2csv
 dpdusage
 Make_coq
 dpd_lex.ml
@@ -35,3 +35,10 @@ tests/*.dot
 tests/*.dpd
 tests/*.glob
 tests/Test.vo
+
+coqstdlib
+*.dpd
+*.csv
+*.txt
+*.vim
+*.svg
