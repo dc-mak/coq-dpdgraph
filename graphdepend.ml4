@@ -131,7 +131,7 @@ let type_of_gref gref id =
 
 let type_of_obj obj id = match obj with
   | G.Node.Gref gref -> type_of_gref gref id
-  | G.Node.Module modp -> ""
+  | G.Node.Module modp -> "NA (Module/File)"
 
 (* Add module dependency between parent and child *)
 let rec add_mod_dpd (graph, todo) (parent, child) =
@@ -159,12 +159,14 @@ let rec add_mod_dpd (graph, todo) (parent, child) =
     graph, todo)
 
 (* To include directories: potential point for inefficiency due to copying *)
-let rec get_mods_rec = function 
-  | [] -> []
-  | _ :: _ as xs ->
+let get_mods_rec xs =
+  let rec get_mods_rec acc = function 
+  | [] -> acc
+  | (_ :: rest) as xs ->
       let dp = Names.DirPath.make xs in
       let () = debug (str "Add inferred dpds " ++ str (Names.DirPath.to_string dp)) in
-      Names.ModPath.MPfile dp :: get_mods_rec xs
+      get_mods_rec (Names.ModPath.MPfile dp :: acc) rest in
+  List.rev (get_mods_rec [] xs)
 
 let rec get_mod_dirs modpath =
   let path, name = G.Node.split_name (G.Node.Module modpath) in
@@ -180,9 +182,12 @@ let rec get_mod_dirs modpath =
   | Names.ModPath.MPdot (child, _) ->
     modpath :: get_mod_dirs child)
 
-let rec pair_up = function
-  | [] | [_] -> []
-  | x :: y :: xs -> (x, y) :: pair_up (y :: xs)
+let pair_up xs = 
+  let rec pair_up acc = function
+  | [] | [_] -> acc
+  | x :: y :: xs -> pair_up ((x, y) :: acc) (y :: xs) in
+  List.rev (pair_up [] xs)
+
 
 (* Add dependencies of modules *)
 let add_module_dpds graph todo modpath =
@@ -359,7 +364,10 @@ end = struct
     let dirname, name = G.Node.split_name obj in
     let acc = if dirname = "" then [] else [("path", "\""^dirname^"\"")] in
     let acc = ("kind", kind_of_obj obj) :: acc in
-    let acc = ("type", type_of_obj obj id) :: acc in
+    let acc =
+      let replace_newline = function '\n' -> '#' | '"' -> ''' | c -> c in
+      let result = String.map replace_newline (type_of_obj obj id) in
+      if result = "" then acc else ("type", "\"" ^ result ^ "\"") :: acc in
     Format.fprintf fmt "N: %d \"%s\" [%a];@." id name pp_attribs acc
 
   let out_edge fmt _g e =
