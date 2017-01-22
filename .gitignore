@@ -21,6 +21,7 @@ config.status
 *.mllib.d
 *.v.d
 *.vo
+*.v~
 
 dpd2dot
 dpd2csv
