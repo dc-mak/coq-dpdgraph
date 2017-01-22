@@ -16,6 +16,8 @@ install:
 - travis_wait opam install -y coq.8.5.2
 - opam list
 script:
+- set -e # Terminate script if a command fails
+- set -u # Terminate script if an unset variable is used
 - autoconf
 - ./configure
 - make
