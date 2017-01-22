@@ -1,23 +1,22 @@
 #!/bin/bash 
+set -e # Fail immediately if any command fails
+set -u # Fail if any variables are uninitialised
 
 # usage : 
-# ./build_graph.sh <neo4j path> <csv path> <database name (directory)> 
+# ./build_graph.sh <dir-of-csv-files> <name-of-database-dir> 
 # example: 
-# ./build_graph.sh ~/working/lectures/db1A/ne04j/neo4j-community-3.0.4/bin . graph-db 
-#
+# ./build_graph.sh . graph-db 
 
-NEOHOME=$1  # should grab this from env? 
-CSVPATH=$2
+CSVPATH=$1
+CSVPREFIX=$2
 TARGET=$3
 
 IMPORTARGS="--into $TARGET \
-           --nodes $CSVPATH/DpdStdlib_node.csv \
-           --relationships $CSVPATH/DpdStdlib_edge.csv" 
+           --nodes $CSVPATH/$CSVPREFIX\_node.csv \
+           --relationships $CSVPATH/$CSVPREFIX\_edge.csv" 
 
-# make sure neo4j database is empty 
+# Make sure target Neo4j database is empty 
 rm -rf $TARGET/*
-# invoke the CSV import tool 
-$NEOHOME/neo4j-import --delimiter "," $IMPORTARGS
-            
 
-
+# Invoke the CSV import tool 
+$NEO4J_BIN_DIR/neo4j-import --delimiter "," $IMPORTARGS
