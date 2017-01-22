@@ -160,12 +160,22 @@ let rec add_mod_dpd (graph, todo) (parent, child) =
     let graph = G.add_edge graph parent_node child_node 1 in
     graph, todo)
 
-(* To include directories: potential point for inefficiency due to copying *)
+(*
 let get_mods_rec xs =
   let rec get_mods_rec acc = function 
   | [] -> acc
-  | (_ :: rest) as xs ->
-      let dp = Names.DirPath.make xs in
+  | _ :: rest ->
+      let dp = Names.DirPath.make rest in
+      let () = debug (str "Add inferred dpds " ++ str (Names.DirPath.to_string dp)) in
+      get_mods_rec (Names.ModPath.MPfile dp :: acc) rest in
+  List.rev (get_mods_rec [] xs)
+*)
+(* To include directories: potential point for inefficiency due to copying *)
+let get_mods_rec xs =
+  let rec get_mods_rec acc = function 
+  | [] | [_] -> acc
+  | _ :: (_ :: _ as rest) ->
+      let dp = Names.DirPath.make rest in
       let () = debug (str "Add inferred dpds " ++ str (Names.DirPath.to_string dp)) in
       get_mods_rec (Names.ModPath.MPfile dp :: acc) rest in
   List.rev (get_mods_rec [] xs)
@@ -177,8 +187,8 @@ let rec get_mod_dirs modpath =
   | Names.ModPath.MPfile dirpath ->
     modpath :: get_mods_rec (Names.DirPath.repr dirpath)
 
-  | Names.ModPath.MPbound mbid ->
-    let (_, _, dirpath) = Names.MBId.repr mbid in
+  | Names.ModPath.MPbound mbind ->
+    let (_, _, dirpath) = Names.MBId.repr mbind in
     modpath :: get_mods_rec (Names.DirPath.repr dirpath)
 
   | Names.ModPath.MPdot (child, _) ->
@@ -267,12 +277,11 @@ let add_obj_only (graph, todo) obj =
 (** add the obj in [l] and build the dependencies according to [all] *)
 let add_obj_list_and_dpds graph ~all l =
   let graph, todo = List.fold_left add_obj_only (graph, []) l in 
-  let rec add_obj_dpds_rec graph todo = match todo with
+  let rec add_obj_dpds_rec graph = function
     | [] -> graph
-    | n::todo -> 
-        let graph, todo = add_obj_dpds graph ~all n todo in
-		add_obj_dpds_rec graph todo in
-
+    | n::todo ->
+      let graph, todo = add_obj_dpds graph ~all n todo in
+      add_obj_dpds_rec graph todo in
   add_obj_dpds_rec graph todo
 
 (** Don't forget to update the README file if something is changed here *)
@@ -286,10 +295,10 @@ end = struct
 		| Definition -> "definition"
 		| Coercion -> "coercion"
 		| SubClass -> "subclass"
-		| CanonicalStructure -> "canonstruc"
+		| CanonicalStructure -> "canonical_structure"
 		| Example -> "example"
-		| Fixpoint -> "definition"
-		| CoFixpoint -> "definition"
+		| Fixpoint -> "fixpoint"
+		| CoFixpoint -> "cofixpoint"
 		| Scheme -> "scheme"
 		| StructureComponent -> "projection"
 		| IdentityCoercion -> "coercion"
@@ -308,7 +317,7 @@ end = struct
 		| Remark -> "remark"
 		| Property -> "property"
 		| Proposition -> "proposition"
-		| Corollary -> "corllary"))
+		| Corollary -> "corollary"))
 
   let kind_of_ind ind =
 	let (mib,oib) = Inductive.lookup_mind_specif (Global.env ()) ind in
@@ -339,7 +348,7 @@ end = struct
 		kind_of_constref (Decls.constant_kind cst)
 
 	  | Globnames.ConstructRef ((typ, _), _) -> 
-		("constructor", None)
+		("type_constructor", None)
 
 	  | Globnames.IndRef ind -> 
 		(kind_of_ind ind, None)
@@ -354,7 +363,7 @@ end = struct
 	| G.Node.Module modpath ->
         (match modpath with
         | Names.ModPath.MPbound _ -> ("bound", None)
-        | Names.ModPath.MPdot _ -> ("mod", None)
+        | Names.ModPath.MPdot _ -> ("module", None)
         | Names.ModPath.MPfile _ -> ("file", None))
 
   let pp_attribs fmt attribs =
@@ -368,21 +377,22 @@ end = struct
       | kind, None -> ("kind", kind) :: acc
       | kind, Some subkind -> ("subkind", subkind) :: ("kind", kind) :: acc in
     let acc =
-      let replace_newline = function '\n' -> '#' | '"' -> '\'' | c -> c in
+      let replace_newline = function '\n' -> '#' | '"' -> '\'' | ',' -> '_' | c -> c in
       let result = String.map replace_newline (type_of_obj obj id) in
       if result = "" then acc else ("type", "\"" ^ result ^ "\"") :: acc in
     Format.fprintf fmt "N: %d \"%s\" [%a];@." id name pp_attribs acc
 
   let out_edge fmt _g e =
 
-    let matches typ n =
-      let dirname, name = G.Node.split_name (G.Node.obj n) in
-      get_constr_type typ = dirname ^ "." ^ name in
-
     (* incorporate src & dst types, flip if constructor & ind & match
      * TO FIX WRONG WAY DEPENDENCY LINK FROM SEARCHDEPEND.ML4 *)
-     let src, dst =
+    let src, dst =
+      let matches typ n =
+        let dirname, name = G.Node.split_name (G.Node.obj n) in
+        get_constr_type typ = dirname ^ "." ^ name in
+
       let src, dst = G.Edge.src e, G.Edge.dst e in
+
       match G.Node.obj src, G.Node.obj dst with
       | G.Node.Gref (Globnames.ConstructRef ((typ, _), _)),
         G.Node.Gref (Globnames.IndRef _) when matches typ dst ->
@@ -442,6 +452,7 @@ let locate_mp_dirpath ref =
   with Not_found ->
     CErrors.user_err_loc
       (loc,"",str "Unknown module" ++ spc() ++ Libnames.pr_qualid qid)
+;;
 
 VERNAC COMMAND EXTEND DependGraphSetFile CLASSIFIED AS QUERY
   | ["Set" "DependGraph" "File" string(str)] -> [ filename := str ]
