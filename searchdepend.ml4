@@ -95,13 +95,12 @@ let collect_dependance gref =
 
 let display_dependance gref = 
   let display d =
-    let pp gr n s = 
-      Printer.pr_global gr ++ str "(" ++ int n ++ str ")" ++ spc() ++s
-    in
-      Pp.msgnl (str"[" ++ ((Data.fold pp) d (str "]")))
-  in try let data = collect_dependance gref in display data
+    let pp gr n s = Printer.pr_global gr ++ str "(" ++ int n ++ str ")" ++ spc() ++s in
+    Pp.msgnl (str"[" ++ ((Data.fold pp) d (str "]"))) in
+  try display (collect_dependance gref)
   with NoDef gref -> 
     Pp.msgerrnl (Printer.pr_global gref ++ str " has no value")
+;;
 
 VERNAC COMMAND EXTEND Searchdepend
    ["SearchDepend" global(ref) ] -> [ display_dependance (Nametab.global ref) ]
