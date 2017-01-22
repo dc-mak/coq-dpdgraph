@@ -17,7 +17,6 @@ install:
 - opam list
 script:
 - set -e # Terminate script if a command fails
-- set -u # Terminate script if an unset variable is used
 - autoconf
 - ./configure
 - make
