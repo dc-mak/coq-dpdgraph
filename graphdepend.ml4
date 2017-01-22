@@ -280,8 +280,7 @@ end = struct
 
   let kind_of_constref =
 	let open Decl_kinds in function
-	| IsDefinition def ->
-		(match def with
+	| IsDefinition def -> ("definition", Some (match def with
 		| Definition -> "definition"
 		| Coercion -> "coercion"
 		| SubClass -> "subclass"
@@ -293,21 +292,21 @@ end = struct
 		| StructureComponent -> "projection"
 		| IdentityCoercion -> "coercion"
 		| Instance -> "instance"
-		| Method -> "method")
+		| Method -> "method"))
 	| IsAssumption a ->
-		(match a with
-		| Definitional -> "assumption_definitional"
-		| Logical -> "assumption_logical"
-		| Conjectural -> "assumption_conjectural")
+		("assumption", Some (match a with
+		| Definitional -> "definitional"
+		| Logical -> "logical"
+		| Conjectural -> "conjectural"))
 	| IsProof th ->
-		(match th with
-		| Theorem
-		| Lemma
-		| Fact
-		| Remark
-		| Property
-		| Proposition
-		| Corollary -> "theorem")
+		("proof", Some (match th with
+		| Theorem -> "theorem"
+		| Lemma -> "lemma"
+		| Fact -> "fact"
+		| Remark -> "remark"
+		| Property -> "property"
+		| Proposition -> "proposition"
+		| Corollary -> "corllary"))
 
   let kind_of_ind ind =
 	let (mib,oib) = Inductive.lookup_mind_specif (Global.env ()) ind in
@@ -331,17 +330,17 @@ end = struct
 
   let kind_of_gref gref = 
 	if Typeclasses.is_class gref then
-	  "class"
+	  ("class", None)
 	else
 	  match gref with
 	  | Globnames.ConstRef cst ->
 		kind_of_constref (Decls.constant_kind cst)
 
 	  | Globnames.ConstructRef ((typ, _), _) -> 
-		"constructor"
+		("constructor", None)
 
 	  | Globnames.IndRef ind -> 
-		kind_of_ind ind
+		(kind_of_ind ind, None)
 
 	  | Globnames.VarRef _ ->
 		assert false
@@ -352,9 +351,9 @@ end = struct
 		kind_of_gref gref
 	| G.Node.Module modpath ->
         (match modpath with
-        | Names.ModPath.MPbound _ -> "bound"
-        | Names.ModPath.MPdot _ -> "mod"
-        | Names.ModPath.MPfile _ -> "file")
+        | Names.ModPath.MPbound _ -> ("bound", None)
+        | Names.ModPath.MPdot _ -> ("mod", None)
+        | Names.ModPath.MPfile _ -> ("file", None))
 
   let pp_attribs fmt attribs =
       List.iter (fun (a,b) -> Format.fprintf fmt "%s=%s, " a b) attribs
@@ -363,9 +362,11 @@ end = struct
     let id, obj = G.Node.id n, G.Node.obj n in
     let dirname, name = G.Node.split_name obj in
     let acc = if dirname = "" then [] else [("path", "\""^dirname^"\"")] in
-    let acc = ("kind", kind_of_obj obj) :: acc in
+    let acc = match kind_of_obj obj with
+      | kind, None -> ("kind", kind) :: acc
+      | kind, Some subkind -> ("subkind", subkind) :: ("kind", kind) :: acc in
     let acc =
-      let replace_newline = function '\n' -> '#' | '"' -> ''' | c -> c in
+      let replace_newline = function '\n' -> '#' | '"' -> '\'' | c -> c in
       let result = String.map replace_newline (type_of_obj obj id) in
       if result = "" then acc else ("type", "\"" ^ result ^ "\"") :: acc in
     Format.fprintf fmt "N: %d \"%s\" [%a];@." id name pp_attribs acc
@@ -387,17 +388,13 @@ end = struct
       | _, _ ->
         src, dst in
 
-    let edge_type =
-      kind_of_obj (G.Node.obj src)
-      ^ "_USED_BY_"
-      ^ kind_of_obj (G.Node.obj dst) in
-
     let edge_attribs =
-      [ ("type", edge_type) ; ("weight", string_of_int (G.Edge.nb_use e))] in
+      [ ("type", "USES") ; ("weight", string_of_int (G.Edge.nb_use e))] in
 
+    (* NOTE: Flipped src and dst - src USED_BY dst <==> dst USES src*)
     Format.fprintf fmt "E: %d %d [%a];@."
-        (G.Node.id src)
         (G.Node.id dst)
+        (G.Node.id src)
         pp_attribs edge_attribs
 
   let out_graph fmt g =
