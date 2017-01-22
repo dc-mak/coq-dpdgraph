@@ -20,11 +20,12 @@ let print_nodes fmt graph =
     let id, name = Node.id n, Node.name n in
     let kind = str_opt_to_str (Node.get_attrib "kind" n) in 
     let subkind = str_opt_to_str (Node.get_attrib "subkind" n) in 
+    let typ = str_opt_to_str (Node.get_attrib "type" n) in 
     let path = str_opt_to_str (Node.get_attrib "path" n) in
-    Format.fprintf fmt "%d,%s,%s,%s,%s@." id name kind subkind path in
+    Format.fprintf fmt "%d,%s,%s,%s,%s,%s@." id name kind subkind path typ in
 
   (* Header, for Neo4j import *)
-  Format.fprintf fmt "objectId:ID(Object),name,:LABEL,:LABEL,path@.";
+  Format.fprintf fmt "objectId:ID(Object),name,kind:LABEL,subkind:LABEL,path,type@.";
   G.iter_vertex print_node graph
 ;;
 
