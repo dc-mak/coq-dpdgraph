@@ -18,7 +18,7 @@ Build dependency graphs between Coq objects,
 where Coq is the famous formal proof management system (see
 http://coq.inria.fr/).
 
-Travis CI status on master branch: [![Build Status](https://travis-ci.org/dc-mak/coq-dpdgraph.svg?branch=master)](https://travis-ci.org/Karmaki/coq-dpdgraph)
+Travis CI status on master branch: [![Build Status](https://travis-ci.org/dc-mak/coq-dpdgraph.svg?branch=master)](https://travis-ci.org/dc-mak/coq-dpdgraph)
 
 ### What's inside ?
 
