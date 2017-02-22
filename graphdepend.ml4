@@ -190,7 +190,7 @@ let rec get_mod_dirs modpath =
     modpath :: get_mods_rec (Names.DirPath.repr dirpath)
 
   | Names.ModPath.MPdot (child, _) ->
-    modpath :: get_mod_dirs child)
+    get_mod_dirs child)
 
 let pair_up xs = 
   let rec pair_up acc = function
