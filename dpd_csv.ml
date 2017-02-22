@@ -42,7 +42,7 @@ let print_edges fmt graph =
       (List.assoc "type" (G.E.label e)) in
 
   (* Header, for Neo4j import *)
-  Format.fprintf fmt ":START_ID(Object),:END_ID(Object),weight,:TYPE@.";
+  Format.fprintf fmt ":START_ID(Object),:END_ID(Object),weight:int,:TYPE@.";
   G.iter_edges_e print_edge graph
 ;;
 
