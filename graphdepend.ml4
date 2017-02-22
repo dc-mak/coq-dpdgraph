@@ -384,7 +384,7 @@ end = struct
 
     (* incorporate src & dst types, flip if constructor & ind & match
      * TO FIX WRONG WAY DEPENDENCY LINK FROM SEARCHDEPEND.ML4 *)
-    let src, dst =
+    let src, dst, rel_type =
       let matches typ n =
         let dirname, name = G.Node.split_name (G.Node.obj n) in
         get_constr_type typ = dirname ^ "." ^ name in
@@ -394,12 +394,16 @@ end = struct
       match G.Node.obj src, G.Node.obj dst with
       | G.Node.Gref (Globnames.ConstructRef ((typ, _), _)),
         G.Node.Gref (Globnames.IndRef _) when matches typ dst ->
-        dst, src
+        dst, src, "CONSTRUCTED_BY"
+      | G.Node.Module _, G.Node.Module _ ->
+        dst, src, "CONTAINS"
+      | G.Node.Module _, G.Node.Gref _ ->
+        src, dst, "CONTAINS"
       | _, _ ->
-        src, dst in
+        src, dst, "USES" in
 
     let edge_attribs =
-      [ ("type", "USES") ; ("weight", string_of_int (G.Edge.nb_use e))] in
+      [ ("type", rel_type) ; ("weight", string_of_int (G.Edge.nb_use e))] in
 
     (* NOTE: Flipped src and dst - src USED_BY dst <==> dst USES src*)
     Format.fprintf fmt "E: %d %d [%a];@."
