@@ -34,7 +34,7 @@ DISTRIBUTED = $(PRE)_compute.ml $(PRE)_dot.ml \
 ML_COMMON = version.ml $(PRE)_compute.ml $(PRE)_dot.ml \
 	 $(PRE)_csv.ml $(PRE)_parse.ml  $(PRE)_lex.ml
 ML_DPD2DOT = $(PRE)2dot.ml
-ML_DPD2 = $(PRE)2csv.ml
+ML_DPD2 = $(PRE)2.ml
 ML_DPDUSAGE = $(PRE)usage.ml
 
 ML_ALL = $(ML_COMMON) $(ML_DPD2DOT) $(ML_DPD2) $(ML_DPDUSAGE)
@@ -140,7 +140,7 @@ TESTS_DPD=$(TESTDIR)/graph.dpd $(TESTDIR)/graph2.dpd \
 	  $(TESTDIR)/Morph.dpd $(TESTDIR)/Morph_rw.dpd $(TESTDIR)/Polymorph.dpd \
           $(TESTDIR)/PrimitiveProjections.dpd $(TESTDIR)/PrimitiveProjections2.dpd
 TESTS_DOT=$(TESTS_DPD:%.dpd=%.dot)
-TESTS_CSV=$(TESTS_DPD:%.dpd=%.dot)
+TESTS_CSV=$(TESTS_DPD:%.dpd=%.csv)
 TESTS=$(TESTS_DPD) $(TESTS_DOT) $(TESTS_CSV) $(TESTDIR)/graph.without.dot \
       $(TESTDIR)/search  $(TESTDIR)/graph2.dpdusage
 TESTS_LOG=$(TESTS:%=%.log)
