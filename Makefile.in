@@ -21,12 +21,12 @@ BINDIR=@BINDIR@
 
 DPDPLUGIN=./dpdgraph.cmxs ./dpdgraph.vo
 DPD2DOT=./dpd2dot
-DPD2CSV=./dpd2csv
+DPD2=./dpd2
 DPDUSAGE=./dpdusage
 
 INCLUDES = -I @OCAMLGRAPH_PATH@
 
-all : $(DPDPLUGIN) $(DPD2DOT) $(DPD2CSV) $(DPDUSAGE)
+all : $(DPDPLUGIN) $(DPD2DOT) $(DPD2) $(DPDUSAGE)
 
 DISTRIBUTED = $(PRE)_compute.ml $(PRE)_dot.ml \
 	 $(PRE)_parse.mly  $(PRE)_lex.mll $(PRE)2dot.ml $(PRE)usage.ml
@@ -34,13 +34,13 @@ DISTRIBUTED = $(PRE)_compute.ml $(PRE)_dot.ml \
 ML_COMMON = version.ml $(PRE)_compute.ml $(PRE)_dot.ml \
 	 $(PRE)_csv.ml $(PRE)_parse.ml  $(PRE)_lex.ml
 ML_DPD2DOT = $(PRE)2dot.ml
-ML_DPD2CSV = $(PRE)2csv.ml
+ML_DPD2 = $(PRE)2csv.ml
 ML_DPDUSAGE = $(PRE)usage.ml
 
-ML_ALL = $(ML_COMMON) $(ML_DPD2DOT) $(ML_DPD2CSV) $(ML_DPDUSAGE)
+ML_ALL = $(ML_COMMON) $(ML_DPD2DOT) $(ML_DPD2) $(ML_DPDUSAGE)
 
 CMOS_DPD2DOT=$(ML_COMMON:%.ml=%.cmo) $(ML_DPD2DOT:%.ml=%.cmo)
-CMOS_DPD2CSV=$(ML_COMMON:%.ml=%.cmo) $(ML_DPD2CSV:%.ml=%.cmo)
+CMOS_DPD2=$(ML_COMMON:%.ml=%.cmo) $(ML_DPD2:%.ml=%.cmo)
 CMOS_DPDUSAGE=$(ML_COMMON:%.ml=%.cmo) $(ML_DPDUSAGE:%.ml=%.cmo)
 CMXS=$(ML_ALL:%.ml=%.cmx)
 
@@ -81,9 +81,9 @@ $(DPD2DOT) : $(CMOS_DPD2DOT)
 	$(ECHO_CIBLE)
 	@OCAMLC@ -g $(INCLUDES) -o $@ graph.cma $(CMOS_DPD2DOT)
 
-$(DPD2CSV) : $(CMOS_DPD2CSV)
+$(DPD2) : $(CMOS_DPD2)
 	$(ECHO_CIBLE)
-	@OCAMLC@ -g $(INCLUDES) -o $@ graph.cma $(CMOS_DPD2CSV)
+	@OCAMLC@ -g $(INCLUDES) -o $@ graph.cma $(CMOS_DPD2)
 
 $(DPDUSAGE) : $(CMOS_DPDUSAGE)
 	$(ECHO_CIBLE)
@@ -183,14 +183,14 @@ $(TESTDIR)/search.log : $(TESTDIR)/Test.vo $(TESTDIR)/search.cmd $(DPDPLUGIN)
 %.dot : %.dpd  $(DPD2DOT)
 	$(DPD2DOT) $< > /dev/null
 
-%.csv : %.dpd  $(DPD2CSV)
-	$(DPD2CSV) $< > /dev/null
+%.csv : %.dpd  $(DPD2)
+	$(DPD2) $< > /dev/null
 
 %.without.dot : %.dpd  $(DPD2DOT)
 	$(DPD2DOT) -without-defs -o $@ $< > /dev/null
 
-%.without.csv : %.dpd  $(DPD2CSV)
-	$(DPD2CSV) -without-defs -o $@ $< > /dev/null
+%.without.csv : %.dpd  $(DPD2)
+	$(DPD2) -without-defs -o $@ $< > /dev/null
 
 %.zgr : %.dot
 	zgrviewer $<
@@ -241,7 +241,7 @@ clean_test :
 
 clean : clean_coq clean_test
 	rm -f $(GENERATED) 
-	rm -f $(CMOS_DPDUSAGE) $(CMOS_DPD2DOT) $(CMOS_DPD2CSV) $(CMXS) $(ML_ALL:%.ml=%.o) *.cmi
+	rm -f $(CMOS_DPDUSAGE) $(CMOS_DPD2DOT) $(CMOS_DPD2) $(CMXS) $(ML_ALL:%.ml=%.o) *.cmi
 	rm -f $(ML_ALL:%.ml=%.annot)
-	rm -f $(DPD2DOT) $(DPD2CSV) $(DPDUSAGE) $(DPDPLUGIN)
+	rm -f $(DPD2DOT) $(DPD2) $(DPDUSAGE) $(DPDPLUGIN)
 
