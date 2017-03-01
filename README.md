@@ -6,7 +6,7 @@ Installation and compilation instructions are below.
 ```
 cd <dir-of-coq-file>
 coqc <other-flags> -R <path-to-repo> dpdgraph <coq-file>
-./dpd2csv -keep-trans <dpd-file> # Will overflow stack without -keep-trans flag
+./dpd2 csv -keep-trans <dpd-file> # Will overflow stack without -keep-trans flag
 export NEO4J_BIN_DIR=<path-to-neo4j> # Ensure variable is set
 ./build_graph.sh <dir-of-csv-files> <prefix-of-csv-files> <name-of-database-dir>
 ```

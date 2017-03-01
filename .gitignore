@@ -24,7 +24,7 @@ config.status
 *.v~
 
 dpd2dot
-dpd2csv
+dpd2
 dpdusage
 Make_coq
 dpd_lex.ml
@@ -43,3 +43,6 @@ coqstdlib
 *.txt
 *.vim
 *.svg
+*.html
+*.R*
+!*.r
