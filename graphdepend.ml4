@@ -117,14 +117,13 @@ let type_of_gref gref id =
 		Arguments_renaming.rename_typing env2 c2 in
 	let l = Evar.Set.union (Evd.evars_of_term j.Environ.uj_val) (Evd.evars_of_term j.Environ.uj_type) in
 	let j = { j with Environ.uj_type = Reductionops.nf_betaiota sigma3 j.Environ.uj_type } in
-    let msg =
-	string_of_ppcmds
+  let msg = string_of_ppcmds
         (Prettyp.print_judgment env2 sigma3 j
         ++ Printer.pr_ne_evar_set
             (fnl () ++ str "where" ++ fnl ())
             (mt ()) sigma3 l ++ Printer.pr_universe_ctx sigma uctx) in
-    let () = debug (str "TYPE: " ++ str msg) in
-    msg
+  let () = debug (str "TYPE: " ++ str msg) in
+  msg
   with _ -> 
 	begin
 	  warning (str "unable to determine the type of the type for " ++ str (string_of_int id));
@@ -351,7 +350,7 @@ end = struct
 		("type_constructor", None)
 
 	  | Globnames.IndRef ind -> 
-		(kind_of_ind ind, None)
+		("inductive_type", Some (kind_of_ind ind))
 
 	  | Globnames.VarRef _ ->
 		assert false
@@ -361,10 +360,10 @@ end = struct
 	| G.Node.Gref gref -> 
 		kind_of_gref gref
 	| G.Node.Module modpath ->
-        (match modpath with
-        | Names.ModPath.MPbound _ -> ("bound", None)
-        | Names.ModPath.MPdot _ -> ("module", None)
-        | Names.ModPath.MPfile _ -> ("file", None))
+        ("module", match modpath with
+        | Names.ModPath.MPbound _ -> Some "bound"
+        | Names.ModPath.MPdot _ -> Some "module"
+        | Names.ModPath.MPfile _ -> Some "file")
 
   let pp_attribs fmt attribs =
       List.iter (fun (a,b) -> Format.fprintf fmt "%s=%s, " a b) attribs
