@@ -18,7 +18,7 @@ let set_out_file file = out_file := Some file
 
 let spec_args = [
   ("-o", Arg.String set_out_file, 
-      ": name of output file (default: name of input file .csv)");
+      ": name of output file (default: name of input file .<ext>)");
   ("-with-defs", Arg.Set Dpd_compute.with_defs, 
       ": show everything (default)");
   ("-without-defs", Arg.Clear Dpd_compute.with_defs, 
@@ -38,20 +38,20 @@ let do_file n out_file_type f =
     Dpd_compute.feedback "read file %s@." f;
     let g = Dpd_lex.read f in
     let g = Dpd_compute.build_graph g in
-      Dpd_compute.simplify_graph g;
-      match output_of_str out_file_type with
-      | None -> Dpd_compute.error "unknown output file-format@."
-      | Some output ->
-      let ext = match output with DOT -> ".dot" | CSV -> ".csv" in
-      let file = match !out_file with 
-        | None -> (Filename.chop_extension f)^ext
-        | Some f -> 
-            if n = 0 then f 
-            else (Filename.chop_extension f)^"."^(string_of_int n)^ext
-      in match output with
-        | DOT -> Dpd_dot.graph_file file g
-        | CSV -> Dpd_csv.graph_file file g
-    with Dpd_compute.Error msg -> Dpd_compute.error "%s@." msg
+    Dpd_compute.simplify_graph g;
+    match output_of_str out_file_type with
+    | None -> Dpd_compute.error "unknown output file-format@."
+    | Some output ->
+    let ext = match output with DOT -> ".dot" | CSV -> ".csv" in
+    let file = match !out_file with 
+      | None -> (Filename.chop_extension f)^ext
+      | Some f -> 
+          if n = 0 then f 
+          else (Filename.chop_extension f)^"."^(string_of_int n)^ext
+    in match output with
+      | DOT -> Dpd_dot.graph_file file g
+      | CSV -> Dpd_csv.graph_file file g
+  with Dpd_compute.Error msg -> Dpd_compute.error "%s@." msg
 
 let main () =
   let usage_msg = "Usage : "^(Sys.argv.(0))^"<csv|dot> [options]" in

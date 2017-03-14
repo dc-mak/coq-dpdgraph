@@ -19,4 +19,4 @@ IMPORTARGS="--into $TARGET \
 rm -rf $TARGET/*
 
 # Invoke the CSV import tool 
-$NEO4J_BIN_DIR/neo4j-import --delimiter "," $IMPORTARGS
+$NEO4J_BIN_DIR/neo4j-import --id-type INTEGER --delimiter "," $IMPORTARGS
