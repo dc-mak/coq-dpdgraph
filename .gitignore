@@ -45,4 +45,4 @@ coqstdlib
 *.svg
 *.html
 *.R*
-!*.r
+!*.R
