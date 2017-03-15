@@ -47,10 +47,21 @@ module G = struct
 		  ((if dir = "<>" then "" else dir), name)
 
 	  | Module modpath ->
-		  match Names.DirPath.repr (Names.ModPath.dp modpath) with
+			(* Copied from 4.04 version of OCaml stdlib
+			 * Last minute hack because Names.ModPath.dp discards name for MPdot *)
+			let split_on_char (sep : char) (s : string) : string list =
+				let r = ref [] in
+				let j = ref (String.length s) in
+				for i = String.length s - 1 downto 0 do
+					if String.unsafe_get s i = sep then begin
+						r := String.sub s (i + 1) (!j - i - 1) :: !r;
+						j := i
+					end
+				done;
+				String.sub s 0 !j :: !r in
+   match List.rev (split_on_char '.' (Names.ModPath.to_string modpath)) with
           | [] -> assert false
-          | x :: xs ->
-              (String.concat "." (List.rev_map Names.Id.to_string xs), Names.Id.to_string x)
+          | x :: xs -> (String.concat "." (List.rev xs), x)
   end
 
   module Edge = struct
@@ -191,7 +202,7 @@ let rec get_mod_dirs modpath =
     modpath :: get_mods_rec (Names.DirPath.repr dirpath)
 
   | Names.ModPath.MPdot (child, _) ->
-    get_mod_dirs child)
+    modpath :: get_mod_dirs child)
 
 let pair_up xs = 
   let rec pair_up acc = function
