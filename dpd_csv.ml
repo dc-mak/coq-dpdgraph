@@ -55,7 +55,7 @@ let try_open_default file_prefix =
     open_out file
 ;;
 
-let graph_file file_prefix g =
+let graph_file _ file_prefix g =
   let node_oc = try_open_default (file_prefix ^ "_node") in
   print_nodes (Format.formatter_of_out_channel node_oc) g;
   close_out node_oc;

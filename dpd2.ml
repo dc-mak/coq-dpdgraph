@@ -16,6 +16,9 @@ let output_of_str str =
 let out_file = ref None
 let set_out_file file = out_file := Some file
 
+let graphname = ref None
+let set_graphname name = graphname := Some name
+
 let spec_args = [
   ("-o", Arg.String set_out_file, 
       ": name of output file (default: name of input file .csv)");
@@ -27,6 +30,8 @@ let spec_args = [
       ": remove transitive dependencies (default)");
   ("-keep-trans", Arg.Clear Dpd_compute.reduce_trans, 
       ": keep transitive dependencies");
+  ("-graphname", Arg.String set_graphname,
+      ": name of graph (default: name of input file)");
   ("-debug", Arg.Set Dpd_compute.debug_flag, 
       ": set debug mode");
   ("-v", Arg.Set version_option, 
@@ -43,14 +48,19 @@ let do_file n out_file_type f =
       | None -> Dpd_compute.error "unknown output file-format@."
       | Some output ->
       let ext = match output with DOT -> ".dot" | CSV -> ".csv" in
-      let file = match !out_file with 
-        | None -> (Filename.chop_extension f)^ext
+      let graphname, file =
+        let chopped = Filename.chop_extension f in
+        let graphname = match !graphname with
+          | None -> chopped
+          | Some name -> name in
+        match !out_file with 
+        | None -> graphname, chopped^ext
         | Some f -> 
-            if n = 0 then f 
-            else (Filename.chop_extension f)^"."^(string_of_int n)^ext
+            if n = 0 then graphname, f
+            else graphname, chopped^"."^(string_of_int n)^ext
       in match output with
-        | DOT -> Dpd_dot.graph_file file g
-        | CSV -> Dpd_csv.graph_file file g
+        | DOT -> Dpd_dot.graph_file graphname file g
+        | CSV -> Dpd_csv.graph_file graphname file g
     with Dpd_compute.Error msg -> Dpd_compute.error "%s@." msg
 
 let main () =
