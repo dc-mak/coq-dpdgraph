@@ -46,12 +46,24 @@ time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
 # Compute PageRank (proofs and definitions)
-cat("PageRank (between definitions and proofs)... "); tic()
+cat("PageRank (over definitions and proofs)... "); tic()
 nodes$definition_proof_pagerank <- page_rank(ig)$vector
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
-# Cluster (proofs and defintions)
+# Compute Betweenness (proofs and definitions)
+cat("Betweenness (over definitions and proofs)... "); tic()
+nodes$definition_proof_betweenness <- betweenness(ig)
+time <- toc(quiet=TRUE); time <- time$toc - time$tic
+cat(sprintf("done. (%.2fs)\n", time))
+
+# Compute Closeness (proofs and definitions)
+cat("Closeness (over definitions and proofs)... "); tic()
+nodes$definition_proof_closeness <- closeness(ig)
+time <- toc(quiet=TRUE); time <- time$toc - time$tic
+cat(sprintf("done. (%.2fs)\n", time))
+
+# Cluster modularity (proofs and defintions)
 cat("Fast modularity clustering (over all definitions and proofs)... "); tic()
 communities <- cluster_fast_greedy(ig)
 memb <- data.frame(id = communities$name,
@@ -60,14 +72,40 @@ nodes <- merge(nodes, memb)
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
+# Cluster betweenness (proofs and defintions)
+cat("Betweenness clustering (over all definitions and proofs)... "); tic()
+communities <- cluster_edge_betweenness(ig)
+memb <- data.frame(id = communities$name,
+                  definition_proof_edge_betweenness = communities$membership)
+nodes <- merge(nodes, memb)
+time <- toc(quiet=TRUE); time <- time$toc - time$tic
+cat(sprintf("done. (%.2fs)\n", time))
+
+# Cluster (proofs and defintions)
+cat("Label propogration clustering (over all definitions and proofs)... "); tic()
+communities <- cluster_label_prop(ig)
+memb <- data.frame(id = communities$name,
+                  definition_proof_label_prop = communities$membership)
+nodes <- merge(nodes, memb)
+time <- toc(quiet=TRUE); time <- time$toc - time$tic
+cat(sprintf("done. (%.2fs)\n", time))
+
 # Put back into database
-cat(sprintf("Setting properties:\n\t%s\n\t%s\n",
+cat(sprintf("Setting properties:\n\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n",
             "definition_proof_pagerank",
-            "definition_proof_modularity.")); tic()
+            "definition_proof_betweenness",
+            "definition_proof_closeness",
+            "definition_proof_modularity",
+            "definition_proof_edge_betweenness",
+            "definition_proof_label_prop")); tic()
 set = "
   MATCH (obj { objectId : toInt({OBJID}) })
-  SET obj.definition_proof_modularity = toInt({MODGROUP}),
-      obj.definition_proof_pagerank = toFloat({DPP}) 
+  SET obj.definition_proof_pagerank = toFloat({PGR}), 
+            obj.definition_proof_betweenness = toFloat({BTW}),
+            obj.definition_proof_closeness = toFloat({CLOSE}),
+            obj.definition_proof_modularity = toInt({MODGROUP}),
+            obj.definition_proof_edge_betweenness = toInt({EBTW}),
+            obj.definition_proof_label_prop = toInt({LBL_PRP})
 "
 transaction <- newTransaction(graph)
 progressBar <- txtProgressBar(min=0,
@@ -80,8 +118,12 @@ for (i in 1:nrow(nodes)) {
   appendCypher(transaction,
                set,
                OBJID=row$id,
-               DPP=row$definition_proof_pagerank,
-               MODGROUP=row$definition_proof_modularity)
+               PGR=row$definition_proof_pagerank,
+               BTW=row$definition_proof_betweenness,
+               CLOSE=row$definition_proof_closeness,
+               MODGROUP=row$definition_proof_modularity,
+               EBTW=row$definition_proof_edge_betweenness,
+               LBL_PRP=row$definition_proof_label_prop)
   setTxtProgressBar(progressBar, i)
 }
 close(progressBar)
