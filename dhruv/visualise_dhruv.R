@@ -50,13 +50,6 @@ edges <- cypher(graph, "
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
-# Output to directory
-dir_name <- readLines(stdin(), 1)
-if (!dir.exists(dir_name)) {
-  dir.create(dir_name)
-}
-setwd(dir_name)
-
 # Plain graph
 cat("Outputting plain visualisation... "); tic()
 visNetwork(nodes, edges, width="100%") %>%
@@ -182,6 +175,3 @@ visNetwork(nodes, edges, width="100%") %>%
   visSave(file = "grid.html")
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
-
-# Exit to parent directory
-setwd("..")

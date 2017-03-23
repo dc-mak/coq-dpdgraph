@@ -50,12 +50,6 @@ edges <- cypher(graph, "
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
-# Output to directory
-if (!dir.exists("regexp")) {
-  dir.create("regexp")
-}
-setwd("regexp")
-
 # Plain graph
 cat("Outputting plain visualisation... "); tic()
 visNetwork(nodes, edges, width="100%") %>%
@@ -181,6 +175,3 @@ visNetwork(nodes, edges, width="100%") %>%
   visSave(file = "grid.html")
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
-
-# Exit to parent directory
-setwd("..")
