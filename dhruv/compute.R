@@ -41,25 +41,26 @@ cat(sprintf("done. (%.2fs)\n", time))
 
 # Constructing graph
 cat("Constructing igraph... "); tic()
+d_ig <- graph_from_data_frame(edges, directed=TRUE, nodes)
 ig <- graph_from_data_frame(edges, directed=FALSE, nodes)
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
 # Compute PageRank (proofs and definitions)
 cat("PageRank (over definitions and proofs)... "); tic()
-nodes$definition_proof_pagerank <- page_rank(ig)$vector
+nodes$definition_proof_pagerank <- page_rank(d_ig)$vector
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
 # Compute Betweenness (proofs and definitions)
 cat("Betweenness (over definitions and proofs)... "); tic()
-nodes$definition_proof_betweenness <- betweenness(ig)
+nodes$definition_proof_betweenness <- betweenness(d_ig)
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
 # Compute Closeness (proofs and definitions)
 cat("Closeness (over definitions and proofs)... "); tic()
-nodes$definition_proof_closeness <- closeness(ig)
+nodes$definition_proof_closeness <- closeness(d_ig)
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
@@ -74,7 +75,7 @@ cat(sprintf("done. (%.2fs)\n", time))
 
 # Cluster betweenness (proofs and defintions)
 cat("Betweenness clustering (over all definitions and proofs)... "); tic()
-communities <- cluster_edge_betweenness(ig)
+communities <- cluster_edge_betweenness(d_ig)
 memb <- data.frame(id = communities$name,
                   definition_proof_edge_betweenness = communities$membership)
 nodes <- merge(nodes, memb)
@@ -83,7 +84,7 @@ cat(sprintf("done. (%.2fs)\n", time))
 
 # Cluster (proofs and defintions)
 cat("Label propogration clustering (over all definitions and proofs)... "); tic()
-communities <- cluster_label_prop(ig)
+communities <- cluster_label_prop(d_ig)
 memb <- data.frame(id = communities$name,
                   definition_proof_label_prop = communities$membership)
 nodes <- merge(nodes, memb)

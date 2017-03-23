@@ -56,6 +56,7 @@ visNetwork(nodes, edges, width="100%") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
+  visEdges(arrows="from") %>%
   visIgraphLayout(randomSeed=11) %>%
   visSave(file = "plain.html")
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
@@ -68,6 +69,7 @@ visNetwork(nodes, edges, width="100%") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
+  visEdges(arrows="from") %>%
   visIgraphLayout(randomSeed=11) %>%
   visSave(file = "betweenness.html")
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
@@ -80,6 +82,7 @@ visNetwork(nodes, edges, width="100%") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
+  visEdges(arrows="from") %>%
   visIgraphLayout(randomSeed=11) %>%
   visSave(file = "closeness.html")
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
@@ -92,6 +95,7 @@ visNetwork(nodes, edges, width="100%") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
+  visEdges(arrows="from") %>%
   visIgraphLayout(randomSeed=11) %>%
   visSave(file = "pagerank.html")
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
@@ -105,6 +109,7 @@ visNetwork(nodes, edges, width="100%") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
+  visEdges(arrows="from") %>%
   visIgraphLayout(randomSeed=11) %>%
   visSave(file = "label_prop.html")
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
@@ -117,6 +122,7 @@ visNetwork(nodes, edges, width="100%") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
+  visEdges(arrows="from") %>%
   visIgraphLayout(randomSeed=11) %>%
   visSave(file = "edge_betweenness.html")
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
@@ -129,6 +135,7 @@ visNetwork(nodes, edges, width="100%") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
+  visEdges(arrows="from") %>%
   visIgraphLayout(randomSeed=11) %>%
   visSave(file = "modularity.html")
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
@@ -159,20 +166,6 @@ visNetwork(nodes, edges, width="100%") %>%
   visEdges(arrows="from") %>%
   visIgraphLayout(randomSeed=11, layout="layout_in_circle") %>%
   visSave(file = "circular.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
-
-# Grid graph
-nodes$group <- nodes$modularity
-nodes$value <- nodes$pagerank
-cat("Outputting grid PageRank/modularity visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(arrows="from") %>%
-  visIgraphLayout(randomSeed=11, layout="layout_on_grid") %>%
-  visSave(file = "grid.html")
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
