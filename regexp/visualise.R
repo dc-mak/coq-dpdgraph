@@ -162,7 +162,7 @@ visNetwork(nodes, edges, width="100%") %>%
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
-# Gride graph
+# Grid graph
 nodes$group <- nodes$modularity
 nodes$value <- nodes$pagerank
 cat("Outputting grid PageRank/modularity visualisation... "); tic()
@@ -173,5 +173,19 @@ visNetwork(nodes, edges, width="100%") %>%
   visEdges(arrows="from") %>%
   visIgraphLayout(randomSeed=11, layout="layout_on_grid") %>%
   visSave(file = "grid.html")
+time <- toc(quiet=TRUE); time <- time$toc - time$tic
+cat(sprintf("done. (%.2fs)\n", time))
+
+# Force-directed layout graph
+nodes$group <- nodes$modularity
+nodes$value <- nodes$pagerank
+cat("Outputting force-directed PageRank/modularity visualisation... "); tic()
+visNetwork(nodes, edges, width="100%") %>%
+  visInteraction(navigationButtons=TRUE,
+                 dragNodes=FALSE,
+                 zoomView=FALSE) %>%
+  visEdges(arrows="from") %>%
+  visIgraphLayout(randomSeed=11, layout="layout_with_fr") %>%
+  visSave(file = "force_directed.html")
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
