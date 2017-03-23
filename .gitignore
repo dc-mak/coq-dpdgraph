@@ -37,7 +37,9 @@ tests/*.dpd
 tests/*.glob
 tests/Test.vo
 
-coqstdlib
+dhruv
+regexp
+stdlib/coqstdlib
 *.dpd
 *.csv
 *.txt
