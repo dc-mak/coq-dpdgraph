@@ -38,9 +38,7 @@ tests/*.glob
 tests/Test.vo
 
 dhruv/coqdhruv
-mathcomp
 regexp/coqregexp
-stdlib
 *.dpd
 *.csv
 *.txt
