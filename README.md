@@ -4,11 +4,27 @@ Quick start
 Installation and compilation instructions are below.
 
 ```
-cd <dir-of-coq-file>
 coqc <other-flags> -I <path-to-repo> -R <path-to-repo> dpdgraph <coq-file>
 ./dpd2 csv -keep-trans <dpd-file> # Will overflow stack without -keep-trans flag
 export NEO4J_BIN_DIR=<path-to-neo4j> # Ensure variable is set
 ./build_graph.sh <dir-of-csv-files> <prefix-of-csv-files> <name-of-database-dir>
+```
+
+For example:
+```
+$ coq-dpdgraph: autoconf
+$ coq-dpdgraph: ./configure
+$ coq-dpdgraph: make
+$ coq-dpdgraph: coqc -R . dpdgraph stdlib/DpdStdlib.v
+$ coq-dpdgraph: mv DpdStdlib.dpd stdlib
+$ coq-dpdgraph: ./dpd2 csv -keep-trans stdlib/DpdStdlib.dpd
+$ coq-dpdgraph: export NEO4J_BIN_DIR=<path-to-neo4j>
+$ coq-dpdgraph: ./build_graph.sh stdlib DpdStdlib stdlib/coqstdlib
+$ coq-dpdgraph: cd stdlib
+$ coq-dpdgraph: # Start database, set password to "Neo4j"
+$ coq-dpdgraph: R
+$ > source("compute.R")
+$ > source("visualise.R")
 ```
 
 coq-dpdgraph
