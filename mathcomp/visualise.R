@@ -23,7 +23,6 @@ nodes <- cypher(graph, "
          obj.definition_proof_pagerank AS pagerank,
          obj.definition_proof_betweenness AS betweenness,
          obj.definition_proof_closeness AS closeness,
-         obj.definition_proof_edge_betweenness AS edge_betweenness,
          obj.definition_proof_label_prop AS label_prop,
          obj.definition_proof_modularity AS modularity
   UNION
@@ -35,7 +34,6 @@ nodes <- cypher(graph, "
          obj.definition_proof_pagerank AS pagerank,
          obj.definition_proof_betweenness AS betweenness,
          obj.definition_proof_closeness AS closeness,
-         obj.definition_proof_edge_betweenness AS edge_betweenness,
          obj.definition_proof_label_prop AS label_prop,
          obj.definition_proof_modularity AS modularity")
 
@@ -108,17 +106,7 @@ visNetwork(nodes, edges, width="100%") %>%
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
-# Edge betweenness
-nodes$group <- nodes$edge_betweenness
-cat("Outputting edge betweenness visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visIgraphLayout(randomSeed=11) %>%
-  visSave(file = "edge_betweenness.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+# # Edge betweenness - skipped
 
 # Modularity
 nodes$group <- nodes$modularity
@@ -132,8 +120,19 @@ visNetwork(nodes, edges, width="100%") %>%
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
+# Force-directed
+nodes$value <- nodes$betweenness
+cat("Outputting label propogation visualisation... "); tic()
+visNetwork(nodes, edges, width="100%") %>%
+  visInteraction(navigationButtons=TRUE,
+                 dragNodes=FALSE,
+                 zoomView=FALSE) %>%
+  visIgraphLayout(randomSeed=11, layout="layout_with_fr") %>%
+  visSave(file = "force_directed.html")
+time <- toc(quiet=TRUE); time <- time$toc - time$tic
+cat(sprintf("done. (%.2fs)\n", time))
+
 # Hierarchical graph
-nodes$group <- nodes$edge_betweenness
 nodes$value <- nodes$betweenness
 cat("Outputting hierarchical visualisation... "); tic()
 visNetwork(nodes, edges, width="100%") %>%

@@ -4,10 +4,7 @@ library(tictoc)
 
 # Connect to DB instance
 cat("Connecting to database... "); tic()
-graph <- startGraph(
-  "http://localhost:7474/db/data/",
-  username="neo4j",
-  password="Neo4j")
+graph <- startGraph("http://localhost:7474/db/data/")
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
@@ -72,14 +69,8 @@ nodes <- merge(nodes, memb)
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
+# Only run on small graphs..?
 # Cluster betweenness (proofs and defintions)
-cat("Betweenness clustering (over all definitions and proofs)... "); tic()
-communities <- cluster_edge_betweenness(ig)
-memb <- data.frame(id = communities$name,
-                  definition_proof_edge_betweenness = communities$membership)
-nodes <- merge(nodes, memb)
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
 
 # Cluster (proofs and defintions)
 cat("Label propogration clustering (over all definitions and proofs)... "); tic()
@@ -91,43 +82,42 @@ time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
 # Put back into database
-cat(sprintf("Setting properties:\n\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n",
+cat(sprintf("Setting properties:\n\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n",
             "definition_proof_pagerank",
             "definition_proof_betweenness",
             "definition_proof_closeness",
             "definition_proof_modularity",
-            "definition_proof_edge_betweenness",
             "definition_proof_label_prop")); tic()
 set = "
   MATCH (obj { objectId : toInt({OBJID}) })
-  SET obj.definition_proof_pagerank = toFloat({PGR}), 
-            obj.definition_proof_betweenness = toFloat({BTW}),
-            obj.definition_proof_closeness = toFloat({CLOSE}),
-            obj.definition_proof_modularity = toInt({MODGROUP}),
-            obj.definition_proof_edge_betweenness = toInt({EBTW}),
-            obj.definition_proof_label_prop = toInt({LBL_PRP})
+  SET obj.definition_proof_pagerank = toFloat({PGR}),
+      obj.definition_proof_betweenness = toFloat({BTW}),
+      obj.definition_proof_closeness = toFloat({CLOSE}),
+      obj.definition_proof_modularity = toInt({MODGROUP}),
+      obj.definition_proof_label_prop = toInt({LBL_PRP})
 "
-transaction <- newTransaction(graph)
+# transaction <- newTransaction(graph)
 progressBar <- txtProgressBar(min=0,
                               max=nrow(nodes),
                               char='=',
                               width=80, 
                               style=3)
+
 for (i in 1:nrow(nodes)) {
+
   row <- nodes[i,]
-  appendCypher(transaction,
+  cypher(graph,
                set,
                OBJID=row$id,
                PGR=row$definition_proof_pagerank,
                BTW=row$definition_proof_betweenness,
                CLOSE=row$definition_proof_closeness,
                MODGROUP=row$definition_proof_modularity,
-               EBTW=row$definition_proof_edge_betweenness,
                LBL_PRP=row$definition_proof_label_prop)
   setTxtProgressBar(progressBar, i)
 }
 close(progressBar)
 cat("Commiting transaction... ")
-commit(transaction)
+# commit(transaction)
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))

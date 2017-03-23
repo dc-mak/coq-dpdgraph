@@ -40,6 +40,7 @@ tests/Test.vo
 dhruv/coqdhruv
 stdlib/coqstdlib
 regexp/coqregexp
+mathcomp/coqmathcomp
 *.dpd
 *.csv
 *.txt
