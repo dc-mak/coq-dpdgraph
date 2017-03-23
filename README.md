@@ -4,11 +4,27 @@ Quick start
 Installation and compilation instructions are below.
 
 ```
-cd <dir-of-coq-file>
-coqc <other-flags> -R <path-to-repo> dpdgraph <coq-file>
+coqc <other-flags> -I <path-to-repo> -R <path-to-repo> dpdgraph <coq-file>
 ./dpd2 csv -keep-trans <dpd-file> # Will overflow stack without -keep-trans flag
 export NEO4J_BIN_DIR=<path-to-neo4j> # Ensure variable is set
 ./build_graph.sh <dir-of-csv-files> <prefix-of-csv-files> <name-of-database-dir>
+```
+
+For example:
+```
+$ coq-dpdgraph: autoconf
+$ coq-dpdgraph: ./configure
+$ coq-dpdgraph: make
+$ coq-dpdgraph: coqc -R . dpdgraph stdlib/DpdStdlib.v
+$ coq-dpdgraph: mv DpdStdlib.dpd stdlib
+$ coq-dpdgraph: ./dpd2 csv -keep-trans stdlib/DpdStdlib.dpd
+$ coq-dpdgraph: export NEO4J_BIN_DIR=<path-to-neo4j>
+$ coq-dpdgraph: ./build_graph.sh stdlib DpdStdlib stdlib/coqstdlib
+$ coq-dpdgraph: cd stdlib
+$ coq-dpdgraph: # Start database, set password to "Neo4j"
+$ coq-dpdgraph: R
+$ > source("compute.R")
+$ > source("visualise.R")
 ```
 
 coq-dpdgraph
@@ -20,7 +36,7 @@ http://coq.inria.fr/).
 
 Travis CI status on master branch: [![Build Status](https://travis-ci.org/dc-mak/coq-dpdgraph.svg?branch=master)](https://travis-ci.org/dc-mak/coq-dpdgraph)
 
-### What's inside ?
+## What's inside ?
 
 First of all, it is a small tool (a Coq plug-in) that extracts the
 dependencies between Coq objects, and produces a file (we suggest using
@@ -35,7 +51,7 @@ them;
 
 Hope other tools later on to do more things. Feel free to contribute!
 
-### How to get it
+## How to get it
 
 You can:
 - either clone it from GitHub at: https://github.com/Karmaki/coq-dpdgraph
@@ -47,13 +63,14 @@ You can:
 
 #### Requirements
 
-- The latest version runs with Coq 8.5
+- The latest version runs with Coq 8.6
 - it has been tested with a version of Coq installed using opam and with
-  Ocaml version 4.02.3
+  Ocaml version 4.04.0
 - [ocamlgraph](http://ocamlgraph.lri.fr/) (for dpd2dot tool)
   Any version should work since only the basic feature are used.
 
 #### Compile from the pre-packaged source archive
+
 First download the archive, unpack it, and change directory to the `coq-dpdgraph` directory.
 
     $ ./configure
@@ -62,6 +79,10 @@ First download the archive, unpack it, and change directory to the `coq-dpdgraph
 This should produce a plug-in library for Coq and an executable :
 - `./dpdgraph.cmxs` : a plug-in to be loaded in Coq
 - `./dpd2dot` : a tool to transform .dpd files into .dot graphs.
+
+If you prefer all compiled files to stay in the coq-dpdgraph directory, you can
+skip the make install command.  However, you will have to use
+   $ coqtop -R <coq-dpdgraph-directory> dpdgraph -I <coq-dpdgraph-directory>
 
 #### install using opam
 

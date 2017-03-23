@@ -37,13 +37,14 @@ tests/*.dpd
 tests/*.glob
 tests/Test.vo
 
-regexp/coqregexp
 dhruv/coqdhruv
-stdlib
+stdlib/coqstdlib
+regexp/coqregexp
 *.dpd
 *.csv
 *.txt
 *.vim
 *.svg
+*.html
 *.R*
 !*.R
