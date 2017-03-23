@@ -39,6 +39,7 @@ tests/Test.vo
 
 regexp/coqregexp
 dhruv/coqdhruv
+stdlib
 *.dpd
 *.csv
 *.txt
