@@ -13,11 +13,11 @@ time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
 # Show distribution of PageRank values
-dpp <- cypher(graph, "
-  MATCH (n)
-  WHERE exists(n.definition_proof_pagerank)
-  RETURN n.definition_proof_pagerank AS pagerank")
-plot(density(dpp$pagerank), log='xy')
+# dpp <- cypher(graph, "
+#   MATCH (n)
+#   WHERE exists(n.definition_proof_pagerank)
+#   RETURN n.definition_proof_pagerank AS pagerank")
+# plot(density(dpp$pagerank), log='xy')
 
 # # Grab nodes...
 # cat("Getting nodes (definitions and proofs) "); tic()
