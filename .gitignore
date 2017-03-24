@@ -39,11 +39,12 @@ tests/Test.vo
 
 dhruv/coqdhruv
 regexp/coqregexp
+mathcomp
+stdlib
 *.dpd
 *.csv
 *.txt
 *.vim
 *.svg
-*.html
 *.R*
 !*.R

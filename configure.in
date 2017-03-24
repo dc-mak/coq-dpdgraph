@@ -218,4 +218,4 @@ AC_SUBST(OCAMLGRAPH_PATH)
 
 # Finally create the Makefile from Makefile.in
 AC_OUTPUT(Makefile)
-chmod a-w Makefile
+# chmod a-w Makefile
