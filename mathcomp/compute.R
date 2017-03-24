@@ -208,7 +208,7 @@ nodes$value <- nodes$betweenness
 nodes$group <- nodes$modularity
 modules$group <- max(nodes$group)+1
 other_layout$layout <- "layout_with_fr"
-visualise(nodes, edges, "modularity_fr.html", other_layout)
+visualise(rbind(nodes, modules), contains, "modularity_fr.html", other_layout)
 
 # Modularity (DrL, modules)
 drl_opts <- list(edge.cut=1,
@@ -225,4 +225,4 @@ drl_layout <- list(randomSeed=1492, options=drl_opts, layout="layout_with_drl")
 nodes$value <- nodes$betweenness
 nodes$group <- nodes$modularity
 modules$group <- max(nodes$group)+1
-visualise(nodes, edges, "modularity_drl.html", drl_layout)
+visualise(rbind(nodes, modules), contains, "modularity_drl.html", drl_layout)
