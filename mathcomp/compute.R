@@ -42,44 +42,81 @@ ig <- graph_from_data_frame(edges, directed=FALSE, nodes)
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
+# Calculate metrics on nodes
+node_metric <- function(algorithm, graph) {
+  cat(sprintf("%s ... ", algorithm)); tic()
+
+  result <- switch(algorithm,
+                   PageRank = page_rank(graph)$vector,
+                   Betweenness = betweenness(graph),
+                   Closeness = closeness(graph))
+
+  time <- toc(quiet=TRUE); time <- time$toc - time$tic
+  cat(sprintf("done. (%.2fs)\n", time))
+
+  return(result)
+}
+
 # Compute PageRank (proofs and definitions)
-cat("PageRank (over definitions and proofs)... "); tic()
-nodes$pagerank <- page_rank(d_ig)$vector
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+nodes$pagerank <- node_metric("PageRank", d_ig)
 
 # Compute Betweenness (proofs and definitions)
-cat("Betweenness (over definitions and proofs)... "); tic()
-nodes$betweenness <- betweenness(d_ig)
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+nodes$betweenness <- node_metric("Betweenness", d_ig)
 
 # Compute Closeness (proofs and definitions)
-cat("Closeness (over definitions and proofs)... "); tic()
-nodes$closeness <- closeness(d_ig)
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+nodes$closeness <- node_metric("Closeness", d_ig)
 
-# Cluster modularity (proofs and defintions)
-cat("Fast modularity clustering (over all definitions and proofs)... "); tic()
-communities <- cluster_fast_greedy(ig)
-memb <- data.frame(id = communities$name,
-                  modularity = communities$membership)
-nodes <- merge(nodes, memb)
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+# Assign a cluster to each node
+assign_cluster <- function(algorithm, nodes, graph) {
+  cat(sprintf("%s clustering... ", algorithm)); tic()
 
-# Only run on small graphs..?
-# Cluster betweenness (proofs and defintions)
+  label <- switch(algorithm,
+                  "Fast Modularity" = "modularity",
+                  Betweenness = "betweenness",
+                  "Label Propagation" = "label_prop")
 
-# Cluster (proofs and defintions)
-cat("Label propogation clustering (over all definitions and proofs)... "); tic()
-communities <- cluster_label_prop(d_ig)
-memb <- data.frame(id = communities$name,
-                  label_prop = communities$membership)
-nodes <- merge(nodes, memb)
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+  communities <- switch(algorithm,
+                        "Fast Modularity" = cluster_fast_greedy(graph),
+                        Betweenness = cluster_edge_betweenness(graph),
+                        "Label Propagation" = cluster_label_prop(graph))
+
+  memb <- data.frame(id = communities$name)
+  memb[[label]] <- communities$membership
+  nodes <- merge(nodes, memb)
+
+  time <- toc(quiet=TRUE); time <- time$toc - time$tic
+  cat(sprintf("done. (%.2fs)\n", time))
+
+  return(nodes)
+}
+
+# Cluster modularity (proofs and defintions) 
+# Needs UNDIRECTED graph
+nodes <- assign_cluster("Fast Modularity", nodes, ig)
+
+# Only run on small graphs.
+# nodes <- assign_cluster("Betweenness", nodes, d_ig)
+
+# Cluster label_prop (proofs and defintions)
+nodes <- assign_cluster("Label Propagation", nodes, d_ig)
+
+# Output visualisations
+visualise <- function(nodes, edges, filename, layout_opts) {
+  cat(sprintf("Outputting %s... ", filename)); tic()
+
+  g <- visNetwork(nodes, edges, width="100%", height="700px") %>%
+       visInteraction(navigationButtons=TRUE,
+                      dragNodes=FALSE,
+                      zoomView=FALSE) %>%
+       visEdges(color=list(color="lightgray", opacity=0.1), dashes=TRUE)
+
+  g <- do.call(visIgraphLayout, append(list(g), layout_opts))
+
+  visSave(g, file = filename)
+
+  time <- toc(quiet=TRUE); time <- time$toc - time$tic
+  cat(sprintf("done. (%.2fs)\n", time))
+}
 
 # DrL options list
 drl_opts <- list(edge.cut=1,
@@ -92,127 +129,54 @@ drl_opts <- list(edge.cut=1,
                  expansion.attraction=0,
                  simmer.attraction=0);
 
-# Plain graph
-cat("Outputting plain visualisation... "); tic()
-visNetwork(nodes, edges, width="100%", height="700px") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(color=list(color="lightgray", opacity=0.1), dashes=TRUE) %>%
-  visIgraphLayout(randomSeed=1492, options=drl_opts, layout="layout_with_drl") %>%
-  visSave(file = "plain.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+# Layout options list
+drl_layout <- list(randomSeed=1492, options=drl_opts, layout="layout_with_drl")
 
-# Betweenness
+# Plain graph
+visualise(nodes, edges, "plain.html", drl_layout)
+
+# # Betweenness
 nodes$value <- nodes$betweenness
-cat("Outputting betweenness visualisation... "); tic()
-visNetwork(nodes, edges, width="100%", height="700px") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(color=list(color="lightgray", opacity=0.1), dashes=TRUE) %>%
-  visIgraphLayout(randomSeed=1492, options=drl_opts, layout="layout_with_drl") %>%
-  visSave(file = "betweenness.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+visualise(nodes, edges, "betweenness.html", drl_layout)
 
 # Closeness
 nodes$value <- nodes$closeness
-cat("Outputting closeness visualisation... "); tic()
-visNetwork(nodes, edges, width="100%", height="700px") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(color=list(color="lightgray", opacity=0.1), dashes=TRUE) %>%
-  visIgraphLayout(randomSeed=1492, options=drl_opts, layout="layout_with_drl") %>%
-  visSave(file = "closeness.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+visualise(nodes, edges, "closeness.html", drl_layout)
 
 # PageRank
 nodes$value <- nodes$pagerank
-cat("Outputting PageRank visualisation... "); tic()
-visNetwork(nodes, edges, width="100%", height="700px") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(color=list(color="lightgray", opacity=0.1), dashes=TRUE) %>%
-  visIgraphLayout(randomSeed=1492, options=drl_opts, layout="layout_with_drl") %>%
-  visSave(file = "pagerank.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+visualise(nodes, edges, "pagerank.html", drl_layout)
+
+# Non DrL layouts
+other_layout <- list(randomSeed=1492)
 
 # Hierarchical graph
 nodes$value <- nodes$betweenness
 nodes$group <- nodes$modularity
-cat("Outputting hierarchical visualisation... "); tic()
-visNetwork(nodes, edges, width="100%", height="700px") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(color=list(color="lightgray", opacity=0.1), dashes=TRUE) %>%
-  visIgraphLayout(randomSeed=1492, layout="layout_with_sugiyama") %>%
-  visSave(file = "hierarchical.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+other_layout$layout <- "layout_with_sugiyama"
+visualise(nodes, edges, "hierarchical.html", other_layout)
 
 # Circle graph
 nodes$value <- nodes$pagerank
 nodes$group <- nodes$modularity
-cat("Outputting circular PageRank/modularity visualisation... "); tic()
-visNetwork(nodes, edges, width="100%", height="700px") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(color=list(opacity=0.25), dashes=TRUE) %>%
-  visIgraphLayout(randomSeed=111, layout="layout_in_circle") %>%
-  visSave(file = "circular.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+other_layout$layout = "layout_in_circle"
+visualise(nodes, edges, "circular.html", other_layout)
 
 # Grid graph
 nodes$value <- nodes$pagerank
 nodes$group <- nodes$modularity
-cat("Outputting grid PageRank/modularity visualisation... "); tic()
-visNetwork(nodes, edges, width="100%", height="700px") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(color=list(color="lightgray", opacity=0.1), dashes=TRUE) %>%
-  visIgraphLayout(randomSeed=1492, layout="layout_on_grid") %>%
-  visSave(file = "grid.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+other_layout$layout <- "layout_on_grid"
+visualise(nodes, edges, "grid.html", other_layout)
 
 # Modularity (DrL)
 nodes$value <- nodes$betweenness
 nodes$group <- nodes$modularity
-cat("Outputting modularity (DrL, direct) visualisation... "); tic()
-visNetwork(nodes, edges, width="100%", height="700px") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(color=list(color="lightgray", opacity=0.1), dashes=TRUE) %>%
-  visIgraphLayout(randomSeed=1492, options=drl_opts, layout="layout_with_drl") %>%
-  visSave(file = "modularity_direct.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+visualise(nodes, edges, "modularity_direct.html", drl_layout)
 
-# Label propogation
+# Label propagation
 nodes$value <- 1
 nodes$group <- nodes$label_prop
-cat("Outputting label propogation visualisation... "); tic()
-visNetwork(nodes, edges, width="100%", height="700px") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(color=list(color="lightgray", opacity=0.1), dashes=TRUE) %>%
-  # visIgraphLayout(randomSeed=1492, niter=6000, layout="layout_with_fr") %>%
-  visIgraphLayout(randomSeed=1492, options=drl_opts, layout="layout_with_drl") %>%
-  visSave(file = "label_prop.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+visualise(nodes, edges, "label_prop.html", drl_layout)
 
 # Construct a hierarchical network
 cat("Getting nodes (modules) "); tic()
@@ -237,23 +201,16 @@ contains <- cypher(graph, "
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
-# # Edge betweenness - skipped
+# Edge betweenness - skipped
 
 # Modularity (FR, modules)
 nodes$value <- nodes$betweenness
 nodes$group <- nodes$modularity
 modules$group <- max(nodes$group)+1
-cat("Outputting modularity (FR, no modules) visualisation... "); tic()
-visNetwork(rbind(modules, nodes), contains, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(color=list(color="lightgray", opacity=0.1), dashes=TRUE) %>%
-  visIgraphLayout(randomSeed=1492, niter=2000, layout="layout_with_fr") %>%
-  visSave(file = "modularity_fr.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+other_layout$layout <- "layout_with_fr"
+visualise(nodes, edges, "modularity_fr.html", other_layout)
 
+# Modularity (DrL, modules)
 drl_opts <- list(edge.cut=1,
                  init.iterations=50,
                  init.temperature=1900,
@@ -263,18 +220,9 @@ drl_opts <- list(edge.cut=1,
                  expansion.temperature=1900,
                  expansion.attraction=0,
                  simmer.attraction=0);
+drl_layout <- list(randomSeed=1492, options=drl_opts, layout="layout_with_drl")
 
-# Modularity (DrL, modules)
 nodes$value <- nodes$betweenness
 nodes$group <- nodes$modularity
 modules$group <- max(nodes$group)+1
-cat("Outputting modularity (DrL, modules) visualisation... "); tic()
-visNetwork(rbind(modules, nodes), contains, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(color=list(color="lightgray", opacity=0.1), dashes=TRUE) %>%
-  visIgraphLayout(randomSeed=1492, options=drl_opts, layout="layout_with_drl") %>%
-  visSave(file = "modularity_drl.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+visualise(nodes, edges, "modularity_drl.html", drl_layout)
