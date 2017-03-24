@@ -94,7 +94,7 @@ drl_opts <- list(edge.cut=1,
 
 # Plain graph
 cat("Outputting plain visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
+visNetwork(nodes, edges, width="100%", height="700px") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
@@ -107,7 +107,7 @@ cat(sprintf("done. (%.2fs)\n", time))
 # Betweenness
 nodes$value <- nodes$betweenness
 cat("Outputting betweenness visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
+visNetwork(nodes, edges, width="100%", height="700px") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
@@ -120,7 +120,7 @@ cat(sprintf("done. (%.2fs)\n", time))
 # Closeness
 nodes$value <- nodes$closeness
 cat("Outputting closeness visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
+visNetwork(nodes, edges, width="100%", height="700px") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
@@ -130,10 +130,10 @@ visNetwork(nodes, edges, width="100%") %>%
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
-# PageRank 
+# PageRank
 nodes$value <- nodes$pagerank
 cat("Outputting PageRank visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
+visNetwork(nodes, edges, width="100%", height="700px") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
@@ -147,7 +147,7 @@ cat(sprintf("done. (%.2fs)\n", time))
 nodes$value <- nodes$betweenness
 nodes$group <- nodes$modularity
 cat("Outputting hierarchical visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
+visNetwork(nodes, edges, width="100%", height="700px") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
@@ -161,7 +161,7 @@ cat(sprintf("done. (%.2fs)\n", time))
 nodes$value <- nodes$pagerank
 nodes$group <- nodes$modularity
 cat("Outputting circular PageRank/modularity visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
+visNetwork(nodes, edges, width="100%", height="700px") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
@@ -175,7 +175,7 @@ cat(sprintf("done. (%.2fs)\n", time))
 nodes$value <- nodes$pagerank
 nodes$group <- nodes$modularity
 cat("Outputting grid PageRank/modularity visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
+visNetwork(nodes, edges, width="100%", height="700px") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
@@ -188,9 +188,8 @@ cat(sprintf("done. (%.2fs)\n", time))
 # Modularity (DrL)
 nodes$value <- nodes$betweenness
 nodes$group <- nodes$modularity
-modules$group <- max(nodes$group)+1
 cat("Outputting modularity (DrL, direct) visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
+visNetwork(nodes, edges, width="100%", height="700px") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
@@ -200,11 +199,11 @@ visNetwork(nodes, edges, width="100%") %>%
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
-# Label propogation 
+# Label propogation
 nodes$value <- 1
 nodes$group <- nodes$label_prop
 cat("Outputting label propogation visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
+visNetwork(nodes, edges, width="100%", height="700px") %>%
   visInteraction(navigationButtons=TRUE,
                  dragNodes=FALSE,
                  zoomView=FALSE) %>%
@@ -216,6 +215,7 @@ time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
 # Construct a hierarchical network
+cat("Getting nodes (modules) "); tic()
 modules <- cypher(graph, "
   MATCH (obj:module)
   RETURN obj.objectId AS id,
