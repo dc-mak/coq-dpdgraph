@@ -37,6 +37,8 @@ tests/*.dpd
 tests/*.glob
 tests/Test.vo
 
+dhruv/
+regexp/
 stdlib/coqstdlib
 mathcomp/coqmathcomp
 *.dpd
