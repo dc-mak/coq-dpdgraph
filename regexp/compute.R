@@ -46,50 +46,63 @@ ig <- graph_from_data_frame(edges, directed=FALSE, nodes)
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
+# Calculate metrics on nodes
+node_metric <- function(algorithm, graph) {
+  cat(sprintf("%s ... ", algorithm)); tic()
+
+  result <- switch(algorithm,
+                   PageRank = page_rank(graph)$vector,
+                   Betweenness = betweenness(graph),
+                   Closeness = closeness(graph))
+
+  time <- toc(quiet=TRUE); time <- time$toc - time$tic
+  cat(sprintf("done. (%.2fs)\n", time))
+
+  return(result)
+}
+
 # Compute PageRank (proofs and definitions)
-cat("PageRank (over definitions and proofs)... "); tic()
-nodes$definition_proof_pagerank <- page_rank(d_ig)$vector
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+nodes$pagerank <- node_metric("PageRank", d_ig)
 
 # Compute Betweenness (proofs and definitions)
-cat("Betweenness (over definitions and proofs)... "); tic()
-nodes$definition_proof_betweenness <- betweenness(d_ig)
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+nodes$betweenness <- node_metric("Betweenness", d_ig)
 
 # Compute Closeness (proofs and definitions)
-cat("Closeness (over definitions and proofs)... "); tic()
-nodes$definition_proof_closeness <- closeness(d_ig)
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+nodes$closeness <- node_metric("Closeness", d_ig)
 
-# Cluster modularity (proofs and defintions)
-cat("Fast modularity clustering (over all definitions and proofs)... "); tic()
-communities <- cluster_fast_greedy(ig)
-memb <- data.frame(id = communities$name,
-                  definition_proof_modularity = communities$membership)
-nodes <- merge(nodes, memb)
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+# Assign a cluster to each node
+assign_cluster <- function(algorithm, nodes, graph) {
+  cat(sprintf("%s clustering... ", algorithm)); tic()
 
-# Cluster betweenness (proofs and defintions)
-cat("Betweenness clustering (over all definitions and proofs)... "); tic()
-communities <- cluster_edge_betweenness(d_ig)
-memb <- data.frame(id = communities$name,
-                  definition_proof_edge_betweenness = communities$membership)
-nodes <- merge(nodes, memb)
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+  label <- switch(algorithm,
+                  "Fast Modularity" = "modularity",
+                  Betweenness = "betweenness",
+                  "Label Propagation" = "label_prop")
 
-# Cluster (proofs and defintions)
-cat("Label propogration clustering (over all definitions and proofs)... "); tic()
-communities <- cluster_label_prop(d_ig)
-memb <- data.frame(id = communities$name,
-                  definition_proof_label_prop = communities$membership)
-nodes <- merge(nodes, memb)
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+  communities <- switch(algorithm,
+                        "Fast Modularity" = cluster_fast_greedy(graph),
+                        Betweenness = cluster_edge_betweenness(graph),
+                        "Label Propagation" = cluster_label_prop(graph))
+
+  memb <- data.frame(id = communities$name)
+  memb[[label]] <- communities$membership
+  nodes <- merge(nodes, memb)
+
+  time <- toc(quiet=TRUE); time <- time$toc - time$tic
+  cat(sprintf("done. (%.2fs)\n", time))
+
+  return(nodes)
+}
+
+# Cluster modularity (proofs and defintions) 
+# Needs UNDIRECTED graph
+nodes <- assign_cluster("Fast Modularity", nodes, ig)
+
+# Only run on small graphs.
+nodes <- assign_cluster("Betweenness", nodes, d_ig)
+
+# Cluster label_prop (proofs and defintions)
+nodes <- assign_cluster("Label Propagation", nodes, d_ig)
 
 # Put back into database
 cat(sprintf("Setting properties:\n\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n",
@@ -119,12 +132,12 @@ for (i in 1:nrow(nodes)) {
   appendCypher(transaction,
                set,
                OBJID=row$id,
-               PGR=row$definition_proof_pagerank,
-               BTW=row$definition_proof_betweenness,
-               CLOSE=row$definition_proof_closeness,
-               MODGROUP=row$definition_proof_modularity,
-               EBTW=row$definition_proof_edge_betweenness,
-               LBL_PRP=row$definition_proof_label_prop)
+               PGR=row$pagerank,
+               BTW=row$betweenness,
+               CLOSE=row$closeness,
+               MODGROUP=row$modularity,
+               EBTW=row$edge_betweenness,
+               LBL_PRP=row$label_prop)
   setTxtProgressBar(progressBar, i)
 }
 close(progressBar)

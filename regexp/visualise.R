@@ -18,8 +18,7 @@ nodes <- cypher(graph, "
   MATCH (obj:definition),
 				(m:module)-[:CONTAINS]->(obj)
   RETURN obj.objectId AS id,
-         obj.name AS label,
-         obj.path AS title,
+         obj.path + '.' + obj.name AS title,
          \"triangle\" AS shape,
          obj.definition_proof_pagerank AS pagerank,
          obj.definition_proof_betweenness AS betweenness,
@@ -31,8 +30,7 @@ nodes <- cypher(graph, "
   MATCH (obj:proof),
 				(m:module)-[:CONTAINS]->(obj)
   RETURN obj.objectId AS id,
-         obj.name AS label,
-         obj.path AS title,
+         obj.path + '.' + obj.name AS title,
          \"square\" AS shape,
          obj.definition_proof_pagerank AS pagerank,
          obj.definition_proof_betweenness AS betweenness,
@@ -50,149 +48,92 @@ edges <- cypher(graph, "
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
-# Plain graph
-cat("Outputting plain visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(arrows="from") %>%
-  visIgraphLayout(randomSeed=11) %>%
-  visSave(file = "plain.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+# Output visualisations
+visualise <- function(nodes, edges, filename, layout_opts, edge_opts, skipIgraph=FALSE) {
+  cat(sprintf("Outputting %s... ", filename)); tic()
 
-# Betweenness
-nodes$value <- nodes$betweenness
-cat("Outputting betweenness visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(arrows="from") %>%
-  visIgraphLayout(randomSeed=11) %>%
-  visSave(file = "betweenness.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+  g <- visNetwork(nodes, edges, width="1600px", height="1600px") %>%
+       visInteraction(navigationButtons=TRUE, dragNodes=FALSE, zoomView=FALSE)
 
-# Closeness
-nodes$value <- nodes$closeness
-cat("Outputting closeness visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(arrows="from") %>%
-  visIgraphLayout(randomSeed=11) %>%
-  visSave(file = "closeness.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+	g <- do.call(visEdges, append(list(g), edge_opts))
 
-# PageRank 
-nodes$value <- nodes$pagerank
-cat("Outputting PrgeRank visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(arrows="from") %>%
-  visIgraphLayout(randomSeed=11) %>%
-  visSave(file = "pagerank.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+  if (!skipIgraph) {
+    g <- do.call(visIgraphLayout, append(list(g), layout_opts))
+  } else {
+    visLayout(g, randomSeed=layout_opts$randomSeed)
+  }
 
-# Label propogation 
-nodes$value <- 1
-nodes$group <- nodes$label_prop
-cat("Outputting label propogation visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(arrows="from") %>%
-  visIgraphLayout(randomSeed=11) %>%
-  visSave(file = "label_prop.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+  visSave(g, file = filename)
 
-# Edge betweenness
-nodes$group <- nodes$edge_betweenness
-cat("Outputting edge betweenness visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(arrows="from") %>%
-  visIgraphLayout(randomSeed=11) %>%
-  visSave(file = "edge_betweenness.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+  time <- toc(quiet=TRUE); time <- time$toc - time$tic
+  cat(sprintf("done. (%.2fs)\n", time))
+  return(g)
+}
 
-# Modularity
+# Bucket
+bucket <- function(x) { return(cut(log(0.001+x), 10, labels=FALSE)) }
+
+# Non DrL layouts
+other_layout <- list(randomSeed=1492)
+
+# Edge options
+edge_opts <- list(arrows="middle", color=list(opacity=1), dashes=FALSE)
+
+# Modularity (FR)
+nodes$value <- bucket(nodes$betweenness)
 nodes$group <- nodes$modularity
-cat("Outputting modularity visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(arrows="from") %>%
-  visIgraphLayout(randomSeed=11) %>%
-  visSave(file = "modularity.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
-
-# Hierarchical graph
-nodes$group <- nodes$edge_betweenness
-nodes$value <- nodes$betweenness
-cat("Outputting hierarchical visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(arrows="from") %>%
-  visIgraphLayout(randomSeed=11, layout="layout_with_sugiyama") %>%
-  visSave(file = "hierarchical.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
-
-# Circle graph
-nodes$group <- nodes$modularity
-nodes$value <- nodes$pagerank
-cat("Outputting circular PageRank/modularity visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(arrows="from") %>%
-  visIgraphLayout(randomSeed=11, layout="layout_in_circle") %>%
-  visSave(file = "circular.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+other_layout$layout <- "layout_with_fr"
+edge_opts <- list(color=list(opacity=1), dashes=FALSE)
+visualise(nodes, edges, "direct.html", other_layout, edge_opts)
 
 # Grid graph
+nodes$value <- cut(nodes$betweenness, 10, labels=FALSE)
 nodes$group <- nodes$modularity
-nodes$value <- nodes$pagerank
-cat("Outputting grid PageRank/modularity visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(arrows="from") %>%
-  visIgraphLayout(randomSeed=11, layout="layout_on_grid") %>%
-  visSave(file = "grid.html")
+other_layout$layout <- "layout_on_grid"
+edge_opts <- list(arrows="middle", color=list(opacity=0.7), dashes=TRUE)
+visualise(nodes, edges, "grid.html", other_layout, edge_opts)
+
+# Hierarchical graph
+nodes$value <- bucket(nodes$betweenness)
+nodes$group <- nodes$modularity
+other_layout$layout <- "layout_with_sugiyama"
+edge_opts <- list(color=list(opacity=1), dashes=TRUE)
+visualise(nodes, edges, "hierarchical.html", other_layout, edge_opts)
+
+
+# Construct a hierarchical network
+cat("Getting nodes (modules) "); tic()
+modules <- cypher(graph, "
+  MATCH (obj:module)
+  RETURN obj.objectId AS id,
+         coalesce(obj.path + '.', '') + obj.name AS title,
+         \"circle\" AS shape,
+         NULL AS pagerank,
+         NULL AS betweenness,
+         NULL AS edge_betweenness,
+         NULL AS closeness,
+         NULL AS modularity,
+         NULL AS label_prop,
+         9 AS value")
+
+# and edges.
+cat("and edges... ")
+contains <- cypher(graph, "
+  MATCH (src)-[edge:CONTAINS]->(dst)
+  WHERE (src:module) AND (dst:module OR dst:definition OR dst:proof)
+  RETURN src.objectId AS from, dst.objectId AS to, 10000 * edge.weight AS weight")
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
-# Force-directed layout graph
+# Modularity (FR, modules)
+nodes$value <- bucket(nodes$betweenness)
 nodes$group <- nodes$modularity
-nodes$value <- nodes$pagerank
-cat("Outputting force-directed PageRank/modularity visualisation... "); tic()
-visNetwork(nodes, edges, width="100%") %>%
-  visInteraction(navigationButtons=TRUE,
-                 dragNodes=FALSE,
-                 zoomView=FALSE) %>%
-  visEdges(arrows="from") %>%
-  visIgraphLayout(randomSeed=11, layout="layout_with_fr") %>%
-  visSave(file = "force_directed.html")
-time <- toc(quiet=TRUE); time <- time$toc - time$tic
-cat(sprintf("done. (%.2fs)\n", time))
+modules$group <- max(nodes$group)+1
+other_layout$randomSeed=440
+edge_opts <- list(color=list(opacity=1), dashes=FALSE)
+visualise(rbind(nodes, modules),
+          contains,
+          "module.html",
+          other_layout,
+          edge_opts,
+          skipIgraph=TRUE)
