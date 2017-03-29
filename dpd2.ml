@@ -49,7 +49,8 @@ let do_file n out_file_type f =
           if n = 0 then f 
           else (Filename.chop_extension f)^"."^(string_of_int n)^ext
     in match output with
-      | DOT -> Dpd_dot.graph_file file g
+    (*| DOT -> Dpd_dot.graph_file file g*)
+      | DOT -> failwith "dot output unsupported"
       | CSV -> Dpd_csv.graph_file file g
   with Dpd_compute.Error msg -> Dpd_compute.error "%s@." msg
 
