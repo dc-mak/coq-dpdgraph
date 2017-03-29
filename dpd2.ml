@@ -59,8 +59,9 @@ let do_file n out_file_type f =
             if n = 0 then graphname, f
             else graphname, chopped^"."^(string_of_int n)^ext
       in match output with
-        | DOT -> Dpd_dot.graph_file graphname file g
-        | CSV -> Dpd_csv.graph_file graphname file g
+      | DOT -> failwith "dot output unsupoorted"
+      (* Dpd_dot.graph_file graphname file g *)
+      | CSV -> Dpd_csv.graph_file graphname file g
     with Dpd_compute.Error msg -> Dpd_compute.error "%s@." msg
 
 let main () =
