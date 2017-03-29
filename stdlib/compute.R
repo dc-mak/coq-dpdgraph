@@ -141,13 +141,13 @@ visualise(nodes, edges, "plain.html", drl_layout)
 # nodes$value <- nodes$betweenness
 # visualise(nodes, edges, "betweenness.html", drl_layout)
 
-# # Closeness
-# nodes$value <- nodes$closeness
-# visualise(nodes, edges, "closeness.html", drl_layout)
+# Closeness
+nodes$value <- nodes$closeness
+visualise(nodes, edges, "closeness.html", drl_layout)
 
-# # PageRank
-# nodes$value <- nodes$pagerank
-# visualise(nodes, edges, "pagerank.html", drl_layout)
+# PageRank
+nodes$value <- nodes$pagerank
+visualise(nodes, edges, "pagerank.html", drl_layout)
 
 # Non DrL layouts
 other_layout <- list(randomSeed=1492)

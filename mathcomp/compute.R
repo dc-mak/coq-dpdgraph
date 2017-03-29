@@ -32,6 +32,7 @@ edges <- cypher(graph, "
   MATCH (src)-[edge]->(dst)
   WHERE (src:definition OR src:proof) AND (dst:definition OR dst:proof)
   RETURN src.objectId AS from, dst.objectId AS to, edge.weight AS weight")
+flipped_edges <- data.frame(from=edges$to, to=edges$from, weight=edges$weight)
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
@@ -90,27 +91,37 @@ assign_cluster <- function(algorithm, nodes, graph) {
   return(nodes)
 }
 
+# Bucketing cluster assignments
+bucket <- function(x) { return(cut(x, 10, labels=FALSE)) }
+
 # Cluster modularity (proofs and defintions) 
 # Needs UNDIRECTED graph
 nodes <- assign_cluster("Fast Modularity", nodes, ig)
 
-# Only run on small graphs.
+# # Betweenness: small graphs only
 # nodes <- assign_cluster("Betweenness", nodes, d_ig)
 
 # Cluster label_prop (proofs and defintions)
 nodes <- assign_cluster("Label Propagation", nodes, d_ig)
 
 # Output visualisations
-visualise <- function(nodes, edges, filename, layout_opts) {
+visualise <- function(nodes, edges, filename, layout_opts,
+                      edge_opts=list(color=list(color="lightgray", opacity=0.1), dashes=TRUE),
+                      skipIgraph=FALSE) {
   cat(sprintf("Outputting %s... ", filename)); tic()
 
-  g <- visNetwork(nodes, edges, width="100%", height="700px") %>%
+  g <- visNetwork(nodes, edges, width="1600px", height="1600px") %>%
        visInteraction(navigationButtons=TRUE,
                       dragNodes=FALSE,
-                      zoomView=FALSE) %>%
-       visEdges(color=list(color="lightgray", opacity=0.1), dashes=TRUE)
+                      zoomView=FALSE)
 
-  g <- do.call(visIgraphLayout, append(list(g), layout_opts))
+  g <- do.call(visEdges, append(list(g), edge_opts))
+
+  if (!skipIgraph) {
+    g <- do.call(visIgraphLayout, append(list(g), layout_opts))
+  } else {
+    g <- do.call(visLayout, append(list(g), layout_opts))
+  }
 
   visSave(g, file = filename)
 
@@ -132,51 +143,38 @@ drl_opts <- list(edge.cut=1,
 # Layout options list
 drl_layout <- list(randomSeed=1492, options=drl_opts, layout="layout_with_drl")
 
-# Plain graph
-visualise(nodes, edges, "plain.html", drl_layout)
-
-# # Betweenness
-nodes$value <- nodes$betweenness
-visualise(nodes, edges, "betweenness.html", drl_layout)
-
-# Closeness
-nodes$value <- nodes$closeness
-visualise(nodes, edges, "closeness.html", drl_layout)
-
-# PageRank
-nodes$value <- nodes$pagerank
-visualise(nodes, edges, "pagerank.html", drl_layout)
-
-# Non DrL layouts
-other_layout <- list(randomSeed=1492)
-
-# Hierarchical graph
-nodes$value <- nodes$betweenness
+# Direct DrL
+nodes$value <- bucket(log(0.001 + nodes$betweenness))
 nodes$group <- nodes$modularity
-other_layout$layout <- "layout_with_sugiyama"
-visualise(nodes, edges, "hierarchical.html", other_layout)
+visualise(nodes, edges, "direct_drl.html", drl_layout,
+          edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
 
-# Circle graph
-nodes$value <- nodes$pagerank
+# Grid
+nodes$value <- bucket(log(0.001 + nodes$betweenness))
 nodes$group <- nodes$modularity
-other_layout$layout = "layout_in_circle"
-visualise(nodes, edges, "circular.html", other_layout)
+visualise(nodes, edges, "grid.html",
+          list(randomSeed=1492, layout="layout_on_grid"),
+          edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
 
-# Grid graph
-nodes$value <- nodes$pagerank
+# Circular
+nodes$value <- bucket(log(0.001 + nodes$betweenness))
 nodes$group <- nodes$modularity
-other_layout$layout <- "layout_on_grid"
-visualise(nodes, edges, "grid.html", other_layout)
+visualise(nodes, edges, "circular.html",
+          list(randomSeed=1492, layout="layout_in_circle"),
+          edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
+visualise(nodes, flipped_edges, "circular_flipped.html",
+          list(randomSeed=1492, layout="layout_in_circle"),
+          edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
 
-# Modularity (DrL)
-nodes$value <- nodes$betweenness
+# Sugiyama
+nodes$value <- bucket(log(0.001 + nodes$betweenness))
 nodes$group <- nodes$modularity
-visualise(nodes, edges, "modularity_direct.html", drl_layout)
-
-# Label propagation
-nodes$value <- 1
-nodes$group <- nodes$label_prop
-visualise(nodes, edges, "label_prop.html", drl_layout)
+visualise(nodes, edges, "hierarchical.html",
+          list(randomSeed=1492, layout="layout_with_sugiyama"),
+          edge_opts=list(color=list(opacity=0.4), dashes=TRUE))
+visualise(nodes, flipped_edges, "hierarchical_flipped.html",
+          list(randomSeed=1492, layout="layout_with_sugiyama"),
+          edge_opts=list(color=list(opacity=0.4), dashes=TRUE))
 
 # Construct a hierarchical network
 cat("Getting nodes (modules) "); tic()
@@ -201,28 +199,11 @@ contains <- cypher(graph, "
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
-# Edge betweenness - skipped
-
-# Modularity (FR, modules)
-nodes$value <- nodes$betweenness
+# Modules: slow af but looks great
+nodes$value <- bucket(log(0.001 + nodes$betweenness))
+modules$value <- 10
 nodes$group <- nodes$modularity
-modules$group <- max(nodes$group)+1
-other_layout$layout <- "layout_with_fr"
-visualise(rbind(nodes, modules), contains, "modularity_fr.html", other_layout)
-
-# Modularity (DrL, modules)
-drl_opts <- list(edge.cut=1,
-                 init.iterations=50,
-                 init.temperature=1900,
-                 init.attraction=0,
-                 liquid.temperature=1900,
-                 liquid.attraction=0,
-                 expansion.temperature=1900,
-                 expansion.attraction=0,
-                 simmer.attraction=0);
-drl_layout <- list(randomSeed=1492, options=drl_opts, layout="layout_with_drl")
-
-nodes$value <- nodes$betweenness
-nodes$group <- nodes$modularity
-modules$group <- max(nodes$group)+1
-visualise(rbind(nodes, modules), contains, "modularity_drl.html", drl_layout)
+modules$group <- max(nodes$group) + 1
+visualise(rbind(nodes, modules), contains, "modules.html",
+          list(randomSeed=1492, improvedLayout=TRUE),
+          skipIgraph=TRUE)
