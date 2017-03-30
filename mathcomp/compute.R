@@ -226,4 +226,5 @@ nodes$group <- nodes$modularity
 modules$group <- max(nodes$group) + 1
 visualise(rbind(nodes, modules), contains, "modules.html",
           list(randomSeed=1492, improvedLayout=TRUE),
+          edge_opts=list(color=list(opacity=1))
           skipIgraph=TRUE)
