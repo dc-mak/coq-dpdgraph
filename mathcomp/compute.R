@@ -1,5 +1,6 @@
 suppressMessages(library(RNeo4j))
 suppressMessages(library(igraph))
+library(shiny)
 suppressMessages(library(visNetwork))
 library(tictoc)
 
@@ -101,8 +102,8 @@ nodes <- assign_cluster("Fast Modularity", nodes, ig)
 # # Betweenness: small graphs only
 # nodes <- assign_cluster("Betweenness", nodes, d_ig)
 
-# Cluster label_prop (proofs and defintions)
-nodes <- assign_cluster("Label Propagation", nodes, d_ig)
+# # Cluster label_prop (proofs and defintions)
+# nodes <- assign_cluster("Label Propagation", nodes, d_ig)
 
 # Output visualisations
 visualise <- function(nodes, edges, filename, layout_opts,
@@ -110,7 +111,7 @@ visualise <- function(nodes, edges, filename, layout_opts,
                       skipIgraph=FALSE) {
   cat(sprintf("Outputting %s... ", filename)); tic()
 
-  g <- visNetwork(nodes, edges, width="1600px", height="1600px") %>%
+  g <- visNetwork(nodes, edges, width="1000px", height="800px") %>%
        visInteraction(navigationButtons=TRUE,
                       dragNodes=FALSE,
                       zoomView=FALSE)
@@ -123,22 +124,40 @@ visualise <- function(nodes, edges, filename, layout_opts,
     g <- do.call(visLayout, append(list(g), layout_opts))
   }
 
+  g <- visExport(g, type="pdf", name = sprintf("%s.pdf", filename))
   visSave(g, file = filename)
 
   time <- toc(quiet=TRUE); time <- time$toc - time$tic
   cat(sprintf("done. (%.2fs)\n", time))
+
+  return(g)
 }
 
-# DrL options list
+# DrL options list - painstakingly chosen
 drl_opts <- list(edge.cut=1,
-                 init.iterations=200,
-                 init.temperature=2000,
-                 init.attraction=0,
-                 liquid.temperature=2000,
-                 liquid.attraction=0,
-                 expansion.temperature=2000,
-                 expansion.attraction=0,
-                 simmer.attraction=0);
+  # init
+  init.iterations=200,
+  init.temperature=200 * 6,
+  init.attraction=0,
+  # liquid
+  liquid.iterations=200,
+  # liquid.temperature=200 * i,
+  liquid.attraction=0,
+  # expansion
+  expansion.iterations=200,
+  expansion.temperature=200 * 3,
+  expansion.attraction=0,
+  # cooldown
+  cooldown.iterations=200,
+  cooldown.temperature=200 * 7,
+  cooldown.attraction=1,
+  # crunch
+  crunch.iterations=50,
+  crunch.temperature=200 * 7,
+  crunch.attraction=1,
+  # simmer
+  simmer.iterations=100,
+  simmer.attraction=0)
 
 # Layout options list
 drl_layout <- list(randomSeed=1492, options=drl_opts, layout="layout_with_drl")
@@ -146,7 +165,9 @@ drl_layout <- list(randomSeed=1492, options=drl_opts, layout="layout_with_drl")
 # Direct DrL
 nodes$value <- bucket(log(0.001 + nodes$betweenness))
 nodes$group <- nodes$modularity
-visualise(nodes, edges, "direct_drl.html", drl_layout,
+visualise(nodes, edges,
+          sprintf("direct.html",i),
+          drl_layout,
           edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
 
 # Grid
