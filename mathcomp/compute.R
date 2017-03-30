@@ -19,12 +19,14 @@ nodes <- cypher(graph, "
 				(m:module)-[:CONTAINS]->(obj)
   RETURN obj.objectId AS id,
          obj.path + '.' + obj.name AS title,
+         obj.path AS module,
          \"triangle\" AS shape
   UNION
   MATCH (obj:proof),
 				(m:module)-[:CONTAINS]->(obj)
   RETURN obj.objectId AS id,
          obj.path + '.' + obj.name AS title,
+         obj.path AS module,
          \"square\" AS shape")
 
 # and edges.
@@ -119,7 +121,12 @@ visualise <- function(
        visInteraction(navigationButtons=TRUE,
                       multiselect=TRUE,
                       dragNodes=FALSE,
-                      zoomView=FALSE)
+                      zoomView=FALSE) %>%
+       visOptions(selectedBy=list(variable="group", multiple=TRUE),
+                  highlightNearest=TRUE,
+                  nodesIdSelection=TRUE) # %>%
+       # visOptions(selectedBy=list(variable="module", multiple=TRUE),
+                  # highlightNearest=TRUE)
 
   g <- do.call(visEdges, append(list(g), edge_opts))
 
@@ -142,69 +149,69 @@ visualise <- function(
   return(g)
 }
 
-# # DrL options list - painstakingly chosen
-# drl_opts <- list(edge.cut=1,
-  # # init
-  # init.iterations=200,
-  # init.temperature=200 * 6,
-  # init.attraction=0,
-  # # liquid
-  # liquid.iterations=200,
-  # # liquid.temperature=200 * i,
-  # liquid.attraction=0,
-  # # expansion
-  # expansion.iterations=200,
-  # expansion.temperature=200 * 3,
-  # expansion.attraction=0,
-  # # cooldown
-  # cooldown.iterations=200,
-  # cooldown.temperature=200 * 7,
-  # cooldown.attraction=1,
-  # # crunch
-  # crunch.iterations=50,
-  # crunch.temperature=200 * 7,
-  # crunch.attraction=1,
-  # # simmer
-  # simmer.iterations=100,
-  # simmer.attraction=0)
-#
-# # Layout options list
-# drl_layout <- list(randomSeed=1492, options=drl_opts, layout="layout_with_drl")
-#
-# # Direct DrL
-# nodes$value <- bucket(log(0.001 + nodes$betweenness))
-# nodes$group <- nodes$modularity
-# visualise(nodes, edges, "direct.html", drl_layout,
-          # edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
-# visualise(nodes, flipped_edges, "direct_flipped.html", drl_layout,
-          # edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
-#
-# # Grid
-# nodes$value <- bucket(log(0.001 + nodes$betweenness))
-# nodes$group <- nodes$modularity
-# visualise(nodes, edges, "grid.html",
-          # list(randomSeed=1492, layout="layout_on_grid"),
-          # edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
-#
-# # Circular
-# nodes$value <- bucket(log(0.001 + nodes$betweenness))
-# nodes$group <- nodes$modularity
-# visualise(nodes, edges, "circular.html",
-          # list(randomSeed=1492, layout="layout_in_circle"),
-          # edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
-# visualise(nodes, flipped_edges, "circular_flipped.html",
-          # list(randomSeed=1492, layout="layout_in_circle"),
-          # edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
-#
-# # Sugiyama
-# nodes$value <- bucket(log(0.001 + nodes$betweenness))
-# nodes$group <- nodes$modularity
-# visualise(nodes, edges, "hierarchical.html",
-          # list(randomSeed=1492, layout="layout_with_sugiyama"),
-          # edge_opts=list(color=list(opacity=0.4), dashes=TRUE))
-# visualise(nodes, flipped_edges, "hierarchical_flipped.html",
-          # list(randomSeed=1492, layout="layout_with_sugiyama"),
-          # edge_opts=list(color=list(opacity=0.4), dashes=TRUE))
+# DrL options list - painstakingly chosen
+drl_opts <- list(edge.cut=1,
+  # init
+  init.iterations=200,
+  init.temperature=200 * 6,
+  init.attraction=0,
+  # liquid
+  liquid.iterations=200,
+  # liquid.temperature=200 * i,
+  liquid.attraction=0,
+  # expansion
+  expansion.iterations=200,
+  expansion.temperature=200 * 3,
+  expansion.attraction=0,
+  # cooldown
+  cooldown.iterations=200,
+  cooldown.temperature=200 * 7,
+  cooldown.attraction=1,
+  # crunch
+  crunch.iterations=50,
+  crunch.temperature=200 * 7,
+  crunch.attraction=1,
+  # simmer
+  simmer.iterations=100,
+  simmer.attraction=0)
+
+# Layout options list
+drl_layout <- list(randomSeed=1492, options=drl_opts, layout="layout_with_drl")
+
+# Direct DrL
+nodes$value <- bucket(log(0.001 + nodes$betweenness))
+nodes$group <- nodes$modularity
+visualise(nodes, edges, "direct.html", drl_layout,
+          edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
+visualise(nodes, flipped_edges, "direct_flipped.html", drl_layout,
+          edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
+
+# Grid
+nodes$value <- bucket(log(0.001 + nodes$betweenness))
+nodes$group <- nodes$modularity
+visualise(nodes, edges, "grid.html",
+          list(randomSeed=1492, layout="layout_on_grid"),
+          edge_opts=list(arrows="middle", color=list(opacity=0.6), dashes=TRUE))
+
+# Circular
+nodes$value <- bucket(log(0.001 + nodes$betweenness))
+nodes$group <- nodes$modularity
+visualise(nodes, edges, "circular.html",
+          list(randomSeed=1492, layout="layout_in_circle"),
+          edge_opts=list(arrows="middle", color=list(opacity=0.6), dashes=TRUE))
+visualise(nodes, flipped_edges, "circular_flipped.html",
+          list(randomSeed=1492, layout="layout_in_circle"),
+          edge_opts=list(arrows="middle", color=list(opacity=0.6), dashes=TRUE))
+
+# Sugiyama
+nodes$value <- bucket(log(0.001 + nodes$betweenness))
+nodes$group <- nodes$modularity
+visualise(nodes, edges, "hierarchical.html",
+          list(randomSeed=1492, layout="layout_with_sugiyama"),
+          edge_opts=list(color=list(opacity=0.4), dashes=TRUE))
+visualise(nodes, flipped_edges, "hierarchical_flipped.html",
+          list(randomSeed=1492, layout="layout_with_sugiyama"),
+          edge_opts=list(color=list(opacity=0.4), dashes=TRUE))
 
 # Construct a hierarchical network
 cat("Getting nodes (modules) "); tic()
@@ -212,6 +219,7 @@ modules <- cypher(graph, "
   MATCH (obj:module)
   RETURN obj.objectId AS id,
          obj.path + '.' + obj.name AS title,
+         obj.path AS module,
          \"circle\" AS shape,
          NULL AS pagerank,
          NULL AS betweenness,
