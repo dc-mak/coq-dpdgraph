@@ -165,9 +165,9 @@ drl_layout <- list(randomSeed=1492, options=drl_opts, layout="layout_with_drl")
 # Direct DrL
 nodes$value <- bucket(log(0.001 + nodes$betweenness))
 nodes$group <- nodes$modularity
-visualise(nodes, edges,
-          sprintf("direct.html",i),
-          drl_layout,
+visualise(nodes, edges, "direct.html", drl_layout,
+          edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
+visualise(nodes, flipped_edges, "direct_flipped.html", drl_layout,
           edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
 
 # Grid
@@ -208,7 +208,6 @@ modules <- cypher(graph, "
          NULL AS betweenness,
          NULL AS closeness,
          NULL AS modularity,
-         NULL AS label_prop,
          1 AS value")
 
 # and edges.
