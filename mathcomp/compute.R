@@ -112,7 +112,8 @@ visualise <- function(
     nodes, edges, filename, layout_opts,
     edge_opts=list(color=list(color="lightgray", opacity=0.1), dashes=TRUE),
     skipIgraph=FALSE,
-    group_opts=NULL
+    orange_modules=FALSE,
+    select="module"
   ) {
   cat(sprintf("Outputting %s... ", filename)); tic()
 
@@ -122,11 +123,13 @@ visualise <- function(
                       multiselect=TRUE,
                       dragNodes=FALSE,
                       zoomView=FALSE) %>%
-       visOptions(selectedBy=list(variable="group", multiple=TRUE),
+       visOptions(selectedBy=list(variable=select, multiple=TRUE),
                   highlightNearest=TRUE,
-                  nodesIdSelection=TRUE) # %>%
-       # visOptions(selectedBy=list(variable="module", multiple=TRUE),
-                  # highlightNearest=TRUE)
+                  nodesIdSelection=TRUE)
+
+  if (orange_modules) {
+    g <- visGroups(g, groupname=paste(max(nodes$group)), color="orange")
+  }
 
   g <- do.call(visEdges, append(list(g), edge_opts))
 
@@ -135,10 +138,6 @@ visualise <- function(
   } else {
     g <- do.call(visLayout, append(list(g), layout_opts))
   }
-
-  # if (!is.null(group_opts)) {
-    # g <- do.call(visGroups, append(list(g), group_opts))
-  # }
 
   g <- visExport(g, type="pdf", name = sprintf("%s.pdf", filename))
   visSave(g, file = filename)
@@ -181,37 +180,37 @@ drl_layout <- list(randomSeed=1492, options=drl_opts, layout="layout_with_drl")
 # Direct DrL
 nodes$value <- bucket(log(0.001 + nodes$betweenness))
 nodes$group <- nodes$modularity
-visualise(nodes, edges, "direct.html", drl_layout,
+visualise(nodes, edges, "direct_mod.html", drl_layout,
           edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
-visualise(nodes, flipped_edges, "direct_flipped.html", drl_layout,
+visualise(nodes, flipped_edges, "direct_flipped_mod.html", drl_layout,
           edge_opts=list(color=list(opacity=0.6), dashes=TRUE))
 
 # Grid
 nodes$value <- bucket(log(0.001 + nodes$betweenness))
 nodes$group <- nodes$modularity
-visualise(nodes, edges, "grid.html",
+visualise(nodes, edges, "grid_mod.html",
           list(randomSeed=1492, layout="layout_on_grid"),
           edge_opts=list(arrows="middle", color=list(opacity=0.6), dashes=TRUE))
 
 # Circular
 nodes$value <- bucket(log(0.001 + nodes$betweenness))
 nodes$group <- nodes$modularity
-visualise(nodes, edges, "circular.html",
+visualise(nodes, edges, "circular_mod.html",
           list(randomSeed=1492, layout="layout_in_circle"),
           edge_opts=list(arrows="middle", color=list(opacity=0.6), dashes=TRUE))
-visualise(nodes, flipped_edges, "circular_flipped.html",
+visualise(nodes, flipped_edges, "circular_flipped_mod.html",
           list(randomSeed=1492, layout="layout_in_circle"),
           edge_opts=list(arrows="middle", color=list(opacity=0.6), dashes=TRUE))
 
 # Sugiyama
 nodes$value <- bucket(log(0.001 + nodes$betweenness))
 nodes$group <- nodes$modularity
-visualise(nodes, edges, "hierarchical.html",
+visualise(nodes, edges, "hierarchical_mod.html",
           list(randomSeed=1492, layout="layout_with_sugiyama"),
-          edge_opts=list(color=list(opacity=0.4), dashes=TRUE))
-visualise(nodes, flipped_edges, "hierarchical_flipped.html",
+          edge_opts=list(color=list(opacity=0.2), dashes=TRUE))
+visualise(nodes, flipped_edges, "hierarchical_flipped_mod.html",
           list(randomSeed=1492, layout="layout_with_sugiyama"),
-          edge_opts=list(color=list(opacity=0.4), dashes=TRUE))
+          edge_opts=list(color=list(opacity=0.2), dashes=TRUE))
 
 # Construct a hierarchical network
 cat("Getting nodes (modules) "); tic()
@@ -241,8 +240,8 @@ nodes$value <- bucket(log(0.001 + nodes$betweenness))
 modules$value <- 10
 nodes$group <- nodes$modularity
 modules$group <- max(nodes$group) + 1
-g <- visualise(rbind(nodes, modules), contains, "modules.html",
+g <- visualise(rbind(nodes, modules), contains, "modules_mod.html",
                list(randomSeed=1492, improvedLayout=TRUE),
                edge_opts=list(color=list(color="gray", opacity=0.7), dashes=TRUE),
                skipIgraph=TRUE,
-               group_opts=list(groupname=paste(max(nodes$group)+1), color="orange"))
+               orange_modules=TRUE)
