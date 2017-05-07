@@ -15,15 +15,13 @@ cat(sprintf("done. (%.2fs)\n", time))
 # Grab nodes...
 cat("Getting nodes (definitions and proofs) "); tic()
 nodes <- cypher(graph, "
-  MATCH (obj:definition),
-				(m:module)-[:CONTAINS]->(obj)
+  MATCH (obj:definition)
   RETURN obj.objectId AS id,
          obj.path + '.' + obj.name AS title,
          obj.path AS module,
          \"triangle\" AS shape
   UNION
-  MATCH (obj:proof),
-				(m:module)-[:CONTAINS]->(obj)
+  MATCH (obj:proof)
   RETURN obj.objectId AS id,
          obj.path + '.' + obj.name AS title,
          obj.path AS module,
@@ -97,7 +95,7 @@ assign_cluster <- function(algorithm, nodes, graph) {
 # Bucketing cluster assignments
 bucket <- function(x) { return(cut(x, 10, labels=FALSE)) }
 
-# Cluster modularity (proofs and defintions) 
+# Cluster modularity (proofs and defintions)
 # Needs UNDIRECTED graph
 nodes <- assign_cluster("Fast Modularity", nodes, ig)
 
@@ -215,33 +213,44 @@ visualise(nodes, flipped_edges, "hierarchical_flipped_mod.html",
 # Construct a hierarchical network
 cat("Getting nodes (modules) "); tic()
 modules <- cypher(graph, "
-  MATCH (obj:module)
-  RETURN obj.objectId AS id,
-         obj.path + '.' + obj.name AS title,
-         obj.path AS module,
-         \"circle\" AS shape,
-         NULL AS pagerank,
-         NULL AS betweenness,
-         NULL AS closeness,
-         NULL AS modularity,
-         1 AS value")
+  MATCH (obj:module)-[:CONTAINS]->(dst)
+  WHERE (dst:definition OR dst:proof)
+  RETURN DISTINCT
+    obj.objectId AS id,
+    obj.path + '.' + obj.name AS title,
+    obj.path AS module,
+    \"circle\" AS shape,
+    NULL AS pagerank,
+    NULL AS betweenness,
+    NULL AS closeness,
+    NULL AS modularity,
+    1 AS value")
 
 # and edges.
 cat("and edges... ")
 contains <- cypher(graph, "
-  MATCH (src)-[edge:CONTAINS]->(dst)
-  WHERE (src:module) AND (dst:module OR dst:definition OR dst:proof)
+  MATCH (src:module)-[edge:CONTAINS]->(dst)
+  WHERE (dst:definition OR dst:proof)
   RETURN src.objectId AS from, dst.objectId AS to, edge.weight AS weight")
+depends <- cypher(graph, "
+  MATCH (src)-[edge:DEPENDS_ON]->(dst)
+  RETURN src.objectId AS from, dst.objectId AS to, edge.weight AS weight")
+mod_edges <- rbind(contains, depends)
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
 
 # Modules: slow af but looks great
-nodes$value <- bucket(log(0.001 + nodes$betweenness))
+nodes$value <- 1
 modules$value <- 10
 nodes$group <- nodes$modularity
-modules$group <- max(nodes$group) + 1
-g <- visualise(rbind(nodes, modules), contains, "modules_mod.html",
-               list(randomSeed=1492, improvedLayout=TRUE),
-               edge_opts=list(color=list(color="gray", opacity=0.7), dashes=TRUE),
-               skipIgraph=TRUE,
-               orange_modules=TRUE)
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+for (row in 1:nrow(modules)) {
+  modules[row,"group"] <- Mode(nodes[nodes$module == modules[row,"title"],]$group)
+}
+visualise(rbind(nodes, modules), mod_edges, "hierarchical_with_modules.html",
+          list(randomSeed=1492, layout="layout_with_sugiyama"))
+visualise(modules, depends, "hierarchical_modules.html",
+          list(randomSeed=1492, layout="layout_with_sugiyama"))
