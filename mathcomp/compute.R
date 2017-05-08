@@ -30,7 +30,7 @@ nodes <- cypher(graph, "
 # and edges.
 cat("and edges... ")
 edges <- cypher(graph, "
-  MATCH (src)-[edge]->(dst)
+  MATCH (src)-[edge:USES]->(dst)
   WHERE (src:definition OR src:proof) AND (dst:definition OR dst:proof)
   RETURN src.objectId AS from, dst.objectId AS to, edge.weight AS weight")
 flipped_edges <- data.frame(from=edges$to, to=edges$from, weight=edges$weight)
@@ -235,6 +235,9 @@ contains <- cypher(graph, "
 depends <- cypher(graph, "
   MATCH (src)-[edge:DEPENDS_ON]->(dst)
   RETURN src.objectId AS from, dst.objectId AS to, edge.weight AS weight")
+trans_dep <- cypher(graph, "
+  MATCH (src)-[edge:TRANS_DEP_ON]->(dst)
+  RETURN src.objectId AS from, dst.objectId AS to, edge.weight AS weight")
 mod_edges <- rbind(contains, depends)
 time <- toc(quiet=TRUE); time <- time$toc - time$tic
 cat(sprintf("done. (%.2fs)\n", time))
@@ -253,4 +256,6 @@ for (row in 1:nrow(modules)) {
 visualise(rbind(nodes, modules), mod_edges, "hierarchical_with_modules.html",
           list(randomSeed=1492, layout="layout_with_sugiyama"))
 visualise(modules, depends, "hierarchical_modules.html",
+          list(randomSeed=1492, layout="layout_with_sugiyama"))
+visualise(modules, trans_dep, "trans_hierarchical_modules.html",
           list(randomSeed=1492, layout="layout_with_sugiyama"))
